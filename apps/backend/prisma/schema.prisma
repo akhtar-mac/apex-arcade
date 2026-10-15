@@ -1,0 +1,209 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum TxType {
+  DEPOSIT
+  WITHDRAWAL
+  BET_PLACED
+  BET_WON
+  REFUND
+}
+
+enum TxStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REJECTED
+}
+
+enum RoundStatus {
+  BETTING
+  LOCKED
+  SETTLING
+  COMPLETED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  phoneNumber  String        @unique
+  passwordHash String
+  role         Role          @default(USER)
+  upiId        String?
+  bankAccount  String?
+  ifscCode     String?
+  panNumber    String?
+  fullName     String?
+  email        String?
+  state        String?
+  ageConfirmed Boolean      @default(false)
+  termsVersion String?
+  legalName    String?
+  dailyDepositCap Decimal?  @db.Decimal(12, 2)
+  selfExcludedUntil DateTime?
+  isKycVerified Boolean      @default(false)
+  isBanned     Boolean       @default(false)
+  wallet       Wallet?
+  bets         Bet[]
+  transactions Transaction[]
+  tdsRecords   TdsRecord[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Wallet {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  balance    Decimal  @default(0.00) @db.Decimal(12, 2)
+  locked     Decimal  @default(0.00) @db.Decimal(12, 2)
+  unwagered  Decimal  @default(0.00) @db.Decimal(12, 2) // 1.0x turnover tracking
+  updatedAt  DateTime @updatedAt
+}
+
+model GameRoom {
+  id          String      @id @default(uuid())
+  tierName    String      // "Tier ₹10", "Tier ₹50", "Tier ₹100"
+  entryAmount Decimal     @db.Decimal(10, 2)
+  intervalSec Int         // e.g. 120, 180, 240
+  isActive    Boolean     @default(true)
+  rounds      GameRound[]
+}
+
+model GameRound {
+  id          String      @id @default(uuid())
+  roomId      String
+  room        GameRoom    @relation(fields: [roomId], references: [id])
+  roundNumber Int
+  status      RoundStatus @default(BETTING)
+  startTime   DateTime    @default(now())
+  endTime     DateTime
+  resultCard   Int?        // 1 to 14 (corresponding to picture symbol)
+  multiplier   Decimal     @default(10.0) @db.Decimal(4, 2)
+  totalPool    Decimal?    @db.Decimal(12, 2)
+  houseProfit  Decimal?    @db.Decimal(12, 2)
+  profitMargin Decimal?    @db.Decimal(5, 2)
+  bets         Bet[]
+  createdAt    DateTime    @default(now())
+}
+
+model Bet {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  roundId     String
+  round       GameRound @relation(fields: [roundId], references: [id])
+  chosenCard  Int       // 1 to 14
+  amount      Decimal   @db.Decimal(10, 2)
+  isWin       Boolean?
+  payout      Decimal?  @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+}
+
+model Transaction {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  type            TxType
+  status          TxStatus  @default(PENDING)
+  amount          Decimal   @db.Decimal(12, 2)
+  tdsAmount       Decimal?  @db.Decimal(12, 2)
+  netAmount       Decimal?  @db.Decimal(12, 2)
+  utrNumber       String?   @unique
+  gatewayName     String?
+  screenshot      String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  upiAccountId    String?
+  upiAccount      UpiAccount? @relation(fields: [upiAccountId], references: [id])
+  payoutUpi       String?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model UpiAccount {
+  id               String        @id
+  upiId            String
+  holderName       String
+  bankName         String
+  dailyLimit       Decimal       @db.Decimal(12, 2)
+  currentCollected Decimal       @default(0.00) @db.Decimal(12, 2)
+  qrImageUrl       String?
+  isActive         Boolean       @default(true)
+  isPaused         Boolean       @default(false)
+  transactions     Transaction[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model DeskLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String
+  targetId  String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model GameEvent {
+  id          String      @id
+  name        String
+  stake       Decimal     @db.Decimal(10, 2)
+  multiplier  Decimal     @db.Decimal(4, 2)
+  intervalSec Int         @default(120)
+  isLive      Boolean     @default(false)
+  fixedStake  Boolean     @default(false)
+  cards       EventCard[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model BrandSetting {
+  id        String   @id
+  appName   String
+  shortName String
+  tagline   String
+  logoUrl   String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+model EventCard {
+  id        String    @id @default(uuid())
+  eventId   String
+  event     GameEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  position  Int
+  name      String
+  hindi     String    @default("")
+  symbol    String    @default("")
+  imageUrl  String    @default("")
+
+  @@unique([eventId, position])
+  @@index([eventId])
+}
+
+model TdsRecord {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  withdrawalTxId  String   @unique
+  grossWithdrawal Decimal  @db.Decimal(12, 2)
+  netWinnings     Decimal  @db.Decimal(12, 2)
+  tdsAmount       Decimal  @db.Decimal(12, 2) // 30% of Net Winnings
+  netDispatched   Decimal  @db.Decimal(12, 2) // Gross - TDS
+  financialYear   String   // e.g. "2026-2027"
+  createdAt       DateTime @default(now())
+}

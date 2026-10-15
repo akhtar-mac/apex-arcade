@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Apex Arcade</string>
+    <string name="title_activity_main">Apex Arcade</string>
+    <string name="package_name">com.apexarcade.gaming</string>
+    <string name="custom_url_scheme">com.apexarcade.gaming</string>
+</resources>

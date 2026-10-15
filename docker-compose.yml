@@ -1,0 +1,112 @@
+services:
+  # PostgreSQL 16 Enterprise Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: arcade_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: arcade_user
+      POSTGRES_PASSWORD: arcade_secure_password_2026
+      POSTGRES_DB: arcade_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcade_user -d arcade_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arcade_net
+
+  # PgBouncer Connection Pooler (Translates thousands of app connections to 50 DB links)
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: arcade_pgbouncer
+    restart: always
+    environment:
+      DB_USER: arcade_user
+      DB_PASSWORD: arcade_secure_password_2026
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: arcade_db
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 5000
+      DEFAULT_POOL_SIZE: 50
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - arcade_net
+
+  # Redis 7 In-Memory Cache & Distributed Lock (Redlock & Socket.io Adapter)
+  redis:
+    image: redis:7-alpine
+    container_name: arcade_redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass arcade_redis_secret_2026
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "arcade_redis_secret_2026", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arcade_net
+
+  # Not part of launch. `docker compose up` does not start this.
+  # Use only after a second clock is proven: docker compose --profile second-node up backend
+  backend:
+    profiles: ["second-node"]
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: arcade_backend_1
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    environment:
+      PORT: 4000
+      WORKER_ID: "worker-node-1"
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://arcade_user:arcade_secure_password_2026@postgres:5432/arcade_db?schema=public"
+      REDIS_URL: "redis://:arcade_redis_secret_2026@redis:6379"
+      JWT_SECRET: "arcade_super_jwt_secret_token_key_9921"
+      JWT_REFRESH_SECRET: "arcade_super_refresh_jwt_secret_token_key_1102"
+    ports:
+      - "4000:4000"
+    networks:
+      - arcade_net
+
+  # One API process for launch. A second worker waits until the Redis adapter is proven.
+  nginx:
+    image: nginx:alpine
+    container_name: arcade_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - arcade_net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  arcade_net:
+    driver: bridge

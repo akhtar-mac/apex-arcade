@@ -1,0 +1,39 @@
+{
+  "name": "arcade-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Enterprise-grade real-time 12-picture arcade betting & P2P platform capable of 10,000 CCU",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "node scripts/start-all.mjs",
+    "dev:all": "node scripts/start-all.mjs",
+    "dev:backend": "npm --workspace=apps/backend run dev",
+    "dev:admin": "npm --workspace=apps/web-admin run dev",
+    "dev:landing": "npm --workspace=apps/web-landing run dev",
+    "dev:mobile": "npm --workspace=apps/mobile-app run dev",
+    "dev:p2p": "npm --workspace=apps/p2p-panel run dev",
+    "test": "node --test tests/*.test.js",
+    "test:10k": "node --test tests/load-test-10000-ccu.test.js",
+    "build": "npm run build --workspaces --if-present",
+    "prod:deploy": "node scripts/deploy-prod.js",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "prisma:generate": "npm --workspace=apps/backend run prisma:generate",
+    "prisma:migrate": "npm --workspace=apps/backend run prisma:migrate"
+  },
+  "keywords": [
+    "arcade-betting",
+    "picture-betting",
+    "p2p-payments",
+    "upi",
+    "socketio",
+    "prisma",
+    "redis"
+  ],
+  "author": "Apex Arcade Engineering Team",
+  "license": "UNLICENSED"
+}

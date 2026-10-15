@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Arcade — Enterprise 14-Picture Betting & P2P Ecosystem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #080a0f;
+            color: #f1f5f9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background-image: radial-gradient(circle at 50% 20%, rgba(13, 245, 157, 0.08), transparent 70%);
+        }
+        .container {
+            max-width: 960px;
+            width: 100%;
+        }
+        .brand-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            background: rgba(13, 245, 157, 0.1);
+            border: 1px solid rgba(13, 245, 157, 0.3);
+            color: #0df59d;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 42px;
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+        h1 span {
+            background: linear-gradient(135deg, #0df59d, #00e5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-top: 10px;
+            max-width: 580px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .grid-portals {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .portal-card {
+            background: #111624;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .portal-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(13, 245, 157, 0.4);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(13, 245, 157, 0.15);
+        }
+        .portal-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .portal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+        .portal-port {
+            font-family: 'Space Grotesk', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: #0df59d;
+            background: rgba(13, 245, 157, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+        .portal-desc {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+        .portal-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 800;
+            transition: all 0.2s ease;
+        }
+        .portal-card:hover .portal-btn {
+            background: #0df59d;
+            color: #080a0f;
+            border-color: #0df59d;
+        }
+        .profit-banner {
+            background: linear-gradient(135deg, rgba(255, 184, 0, 0.1), rgba(13, 245, 157, 0.05));
+            border: 1px solid rgba(255, 184, 0, 0.3);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            text-align: left;
+        }
+        .profit-info h4 {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffb800;
+        }
+        .profit-info p {
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-top: 2px;
+        }
+        .profit-tag {
+            font-family: 'Space Grotesk', monospace;
+            font-size: 16px;
+            font-weight: 900;
+            color: #0df59d;
+            background: #080a0f;
+            padding: 6px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(13, 245, 157, 0.3);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand-header">
+            <div class="brand-badge">⚡ REAL-MONEY GAMING ECOSYSTEM</div>
+            <h1>Apex <span>Picture Arcade</span></h1>
+            <p class="subtitle">Complete 4-component production suite: Player Mobile App, Marketing Website, Admin Control Center, and Dedicated P2P Payment Clearance Console.</p>
+        </div>
+
+        <div class="grid-portals">
+            <!-- 1. Player App -->
+            <a href="http://localhost:5174" class="portal-card" target="_blank">
+                <div>
+                    <div class="portal-icon">📱</div>
+                    <div class="portal-port">PORT :5174</div>
+                    <div class="portal-title">Player App</div>
+                    <div class="portal-desc">14-Picture betting game container (Lion, Tiger, Crown, Snake, Dragon, etc.), real-time countdown sync, live Bet & Win calculator, chip selectors, dynamic UPI QR deposit & instant payout requests.</div>
+                </div>
+                <div class="portal-btn">Launch Player App ➔</div>
+            </a>
+
+            <!-- 2. Website & APK Portal -->
+            <a href="http://localhost:5173" class="portal-card" target="_blank">
+                <div>
+                    <div class="portal-icon">🌐</div>
+                    <div class="portal-port">PORT :5173</div>
+                    <div class="portal-title">Website & APK</div>
+                    <div class="portal-desc">Direct Android APK download portal (v2.4.0, 18.5 MB), 14 picture symbols showcase, 4-phase game loop explainer, and legal terms.</div>
+                </div>
+                <div class="portal-btn">Open Website ➔</div>
+            </a>
+
+            <!-- 3. Admin Panel -->
+            <a href="http://localhost:5175" class="portal-card" target="_blank">
+                <div>
+                    <div class="portal-icon">📊</div>
+                    <div class="portal-port">PORT :5175</div>
+                    <div class="portal-title">Admin Panel</div>
+                    <div class="portal-desc">Company management dashboard, live CCU metrics, house profit margin analytics (20%-30%), full Game Logs with winner spotlight, room controls, and player ledger.</div>
+                </div>
+                <div class="portal-btn">Open Admin Panel ➔</div>
+            </a>
+
+            <!-- 4. P2P Payment Panel -->
+            <a href="http://localhost:5176" class="portal-card" target="_blank">
+                <div>
+                    <div class="portal-icon">💳</div>
+                    <div class="portal-port">PORT :5176</div>
+                    <div class="portal-title">P2P Payment Console</div>
+                    <div class="portal-desc">Dedicated console for payment agents to verify incoming 12-digit player UTRs, view receipts, 1-click credit balance, and dispatch withdrawals.</div>
+                </div>
+                <div class="portal-btn">Open P2P Console ➔</div>
+            </a>
+        </div>
+
+        <!-- Guaranteed House Profit Lock Badge -->
+        <div class="profit-banner">
+            <div class="profit-info">
+                <h4>🔒 Dynamic Company Profit Optimizer Active</h4>
+                <p>Every single picture round outcome is mathematically optimized to guarantee company profit stays strictly between <strong>20% and 30%+</strong>.</p>
+            </div>
+            <div class="profit-tag">20% – 30% PROFIT LOCK</div>
+        </div>
+    </div>
+
+    <script>
+        // Dynamically resolve links to current hostname (supports localhost and mobile LAN IP)
+        const host = window.location.hostname || 'localhost';
+        document.querySelectorAll('.portal-card').forEach(card => {
+            const currentHref = card.getAttribute('href');
+            if (currentHref && currentHref.includes('localhost')) {
+                card.setAttribute('href', currentHref.replace('localhost', host));
+            }
+        });
+    </script>
+</body>
+</html>

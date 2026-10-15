@@ -1,0 +1,14 @@
+{
+  "name": "@arcade/shared-utils",
+  "version": "1.0.0",
+  "description": "Financial math, Provably Fair RNG verifiers, and format helpers for Arcade platform",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

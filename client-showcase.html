@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Apex Arcade — 14-Picture Betting Arena (Client Interactive Showcase)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080a0f;
+      --card-bg: #11141c;
+      --card-surface: #161b26;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-green: #00F59B;
+      --accent-green-glow: rgba(0, 245, 155, 0.35);
+      --accent-gold: #F59E0B;
+      --accent-cyan: #00E5FF;
+      --accent-red: #EF4444;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'Space Grotesk', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 245, 155, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 229, 255, 0.05) 0%, transparent 40%);
+    }
+
+    /* Top Showcase Bar */
+    .showcase-header {
+      width: 100%;
+      background: rgba(13, 17, 25, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px var(--accent-green-glow);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .brand-title span {
+      color: var(--accent-green);
+    }
+
+    .brand-subtitle {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Role View Switcher Tabs */
+    .role-tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .role-tab {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .role-tab.active {
+      background: var(--accent-green);
+      color: #000;
+      box-shadow: 0 2px 10px var(--accent-green-glow);
+    }
+
+    /* Device frame wrapper for client showcase */
+    .showcase-viewport {
+      width: 100%;
+      max-width: 440px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .admin-viewport {
+      width: 100%;
+      max-width: 1050px;
+      padding: 20px;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Mobile App Shell */
+    .app-shell {
+      background: #0b0e14;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* App Header / Wallet Status */
+    .app-topbar {
+      padding: 14px 16px;
+      background: linear-gradient(180deg, rgba(22, 27, 38, 0.9), rgba(17, 20, 28, 0.8));
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 5px 10px;
+      border-radius: 100px;
+      border: 1px solid var(--card-border);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .avatar-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .wallet-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 245, 155, 0.08);
+      border: 1px solid rgba(0, 245, 155, 0.25);
+      padding: 6px 12px;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .wallet-box:hover {
+      background: rgba(0, 245, 155, 0.15);
+      transform: scale(1.02);
+    }
+
+    .wallet-amount {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .wallet-amount.flash {
+      color: var(--accent-green);
+      animation: flashPulse 0.6s ease;
+    }
+
+    @keyframes flashPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); color: #fff; }
+      100% { transform: scale(1); }
+    }
+
+    /* Action Buttons in Header */
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .btn-action.deposit {
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      color: #000;
+      font-weight: 800;
+      border: none;
+      box-shadow: 0 2px 10px var(--accent-green-glow);
+    }
+
+    .btn-action:hover {
+      transform: translateY(-1px);
+    }
+
+    /* Live Game Arena Header */
+    .arena-status-bar {
+      padding: 12px 16px;
+      background: rgba(13, 17, 24, 0.6);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .round-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .round-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-green);
+      background: rgba(0, 245, 155, 0.1);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 245, 155, 0.2);
+    }
+
+    .tier-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Countdown Clock */
+    .countdown-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clock-tag {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 900;
+      padding: 4px 12px;
+      border-radius: 8px;
+      background: #181d29;
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .clock-tag.warning {
+      color: #EF4444;
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.1);
+      animation: pulseAlert 0.8s infinite;
+    }
+
+    .clock-tag.normal {
+      color: var(--accent-green);
+      border-color: rgba(0, 245, 155, 0.3);
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+
+    .status-text {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Notice Banner */
+    .lock-banner {
+      display: none;
+      background: linear-gradient(90deg, #7f1d1d, #991b1b);
+      color: #fee2e2;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
+
+    /* 14 Picture Cards Grid */
+    .cards-grid-wrap {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .card-item {
+      background: var(--card-surface);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 8px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      min-height: 98px;
+    }
+
+    .card-item:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .card-item:active {
+      transform: scale(0.96);
+    }
+
+    .card-item.selected {
+      border-color: var(--accent-green);
+      background: rgba(0, 245, 155, 0.08);
+      box-shadow: 0 0 16px var(--accent-green-glow);
+    }
+
+    .card-item.winning {
+      border-color: var(--accent-gold);
+      background: rgba(245, 158, 11, 0.2);
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.7);
+      animation: winGlow 0.6s infinite alternate;
+    }
+
+    @keyframes winGlow {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    .card-payout-tag {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 8px;
+      font-weight: 800;
+      color: #000;
+      background: var(--accent-green);
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .card-id-tag {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      font-size: 8px;
+      font-weight: 800;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .card-symbol {
+      font-size: 32px;
+      margin: 10px 0 4px 0;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+    }
+
+    .card-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      text-align: center;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .card-bet-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 800;
+      background: rgba(0, 245, 155, 0.2);
+      color: var(--accent-green);
+      border: 1px solid rgba(0, 245, 155, 0.3);
+      padding: 1px 6px;
+      border-radius: 10px;
+      min-height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Chip Selector Bar */
+    .chip-selector-box {
+      background: var(--card-surface);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chip-selector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .chips-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+
+    .chip-btn {
+      background: #1e2433;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 8px 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .chip-btn.active {
+      background: var(--accent-green);
+      color: #000;
+      border-color: var(--accent-green);
+      box-shadow: 0 4px 12px var(--accent-green-glow);
+      transform: translateY(-2px);
+    }
+
+    /* Action Bet Controls */
+    .bet-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: #181d29;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .action-btn.place-bet {
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      color: #000;
+      font-weight: 900;
+      border: none;
+      box-shadow: 0 4px 16px var(--accent-green-glow);
+    }
+
+    .action-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: none;
+    }
+
+    /* ════════════ BOTTOM ARENA: LAST 2-3 DRAWS ════════════ */
+    .section-draws-box {
+      background: #11141c;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .draws-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .draws-title {
+      color: var(--accent-gold);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .draws-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .draw-card-thumb {
+      background: #181d29;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 8px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .draw-card-emoji {
+      font-size: 24px;
+    }
+
+    .draw-card-name {
+      font-size: 10px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .draw-round-number {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--accent-gold);
+      font-weight: 700;
+    }
+
+    /* ════════════ BOTTOM ARENA: LIVE PLAYERS BETS FEED ════════════ */
+    .section-bets-feed {
+      background: #11141c;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bets-feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .feed-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feed-subtitle {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .live-pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulseAlert 1s infinite;
+    }
+
+    .bets-feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .bets-feed-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .bets-feed-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    .bet-feed-row {
+      background: #171b26;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .bet-feed-row.self {
+      border-color: rgba(0, 245, 155, 0.4);
+      background: rgba(0, 245, 155, 0.08);
+    }
+
+    .feed-user-id {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feed-self-badge {
+      font-size: 8px;
+      font-weight: 900;
+      background: var(--accent-green);
+      color: #000;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .feed-card-staked {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .feed-amount-staked {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--accent-gold);
+    }
+
+    /* Bottom App Navigation Bar */
+    .app-bottom-nav {
+      background: rgba(17, 20, 28, 0.95);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--card-border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 6px;
+    }
+
+    .nav-tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .nav-tab-btn.active {
+      color: var(--accent-green);
+    }
+
+    .nav-tab-icon {
+      font-size: 18px;
+    }
+
+    /* ════════════ MODALS ════════════ */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #11141c;
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.93); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Modal Form Inputs */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .form-input {
+      background: #181d29;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: #fff;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green-glow);
+    }
+
+    /* Deposit QR Container */
+    .deposit-qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      background: #181d29;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+    }
+
+    .qr-fake-img {
+      width: 140px;
+      height: 140px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Toast Notification */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #181d29;
+      border: 1px solid var(--accent-green);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 15px var(--accent-green-glow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 300;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .toast-box.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ════════════ SUPER ADMIN CONSOLE STYLES ════════════ */
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .admin-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .admin-metric-box {
+      background: #161b26;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .admin-metric-val {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .admin-metric-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .kill-switch-btn {
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .kill-switch-btn.red {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .kill-switch-btn.red:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .kill-switch-btn.yellow {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+
+    .kill-switch-btn.yellow:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Showcase Navigation Bar -->
+  <header class="showcase-header">
+    <div class="brand-wrap">
+      <div class="brand-icon">🎰</div>
+      <div>
+        <div class="brand-title">APEX<span>ARCADE</span></div>
+        <div class="brand-subtitle">Client Demo Showcase</div>
+      </div>
+    </div>
+
+    <!-- Role Switcher Tabs -->
+    <div class="role-tabs">
+      <div class="role-tab active" onclick="switchRole('player')">📱 Player App</div>
+      <div class="role-tab" onclick="switchRole('admin')">🛡️ Super Admin</div>
+      <div class="role-tab" onclick="switchRole('p2p')">💳 P2P Desk</div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       VIEW 1: MOBILE PLAYER GAME APP (100% SAME AS PRODUCTION)
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="showcase-viewport" id="player-view">
+    <div class="app-shell">
+
+      <!-- Topbar: User & Wallet Balance -->
+      <div class="app-topbar">
+        <div class="user-pill">
+          <div class="avatar-dot"></div>
+          <span id="user-display-name">Player #7742</span>
+        </div>
+
+        <div class="top-actions">
+          <div class="wallet-box" onclick="openDepositModal()">
+            <span style="font-size: 14px;">👛</span>
+            <span class="wallet-amount" id="wallet-balance">₹6,000.00</span>
+          </div>
+
+          <button class="btn-action deposit" onclick="openDepositModal()">
+            <span>+</span> Deposit
+          </button>
+          <button class="btn-action" onclick="openWithdrawModal()">
+            Withdraw
+          </button>
+        </div>
+      </div>
+
+      <!-- Arena Status: Round # and Countdown -->
+      <div class="arena-status-bar">
+        <div class="round-indicator">
+          <span class="round-tag" id="arena-round-number">ROUND #142</span>
+          <span class="tier-badge">Tier ₹10 Classic</span>
+        </div>
+
+        <div class="countdown-box">
+          <span class="status-text" id="arena-status-label" style="color: var(--accent-green);">BETTING OPEN</span>
+          <div class="clock-tag normal" id="countdown-clock">
+            <span>⏱️</span>
+            <span id="seconds-counter">38s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Emergency Freeze Banner (Triggered by Super Admin Kill Switch) -->
+      <div class="lock-banner" id="freeze-alert-banner">
+        🚨 BETTING IS TEMPORARILY LOCKED FOR RESULT OPTIMIZATION
+      </div>
+
+      <!-- 14 Picture Cards Betting Arena -->
+      <div class="cards-grid-wrap">
+        <div class="cards-grid" id="cards-container">
+          <!-- Rendered via JS -->
+        </div>
+
+        <!-- Chip Denomination Selector -->
+        <div class="chip-selector-box">
+          <div class="chip-selector-header">
+            <span>Select Stake Chip</span>
+            <span>Max Bet: ₹50,000</span>
+          </div>
+
+          <div class="chips-row">
+            <div class="chip-btn active" onclick="selectChip(10)">₹10</div>
+            <div class="chip-btn" onclick="selectChip(50)">₹50</div>
+            <div class="chip-btn" onclick="selectChip(100)">₹100</div>
+            <div class="chip-btn" onclick="selectChip(500)">₹500</div>
+            <div class="chip-btn" onclick="selectChip(1000)">₹1k</div>
+            <div class="chip-btn" onclick="selectChip(5000)">₹5k</div>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="bet-actions-row">
+          <button class="action-btn" onclick="clearCurrentBets()">Clear</button>
+          <button class="action-btn" onclick="doubleCurrentBets()">2x Double</button>
+          <button class="action-btn place-bet" id="btn-submit-bets" onclick="confirmCurrentBets()">
+            Confirm Stakes (<span id="total-staked-summary">₹0</span>)
+          </button>
+        </div>
+
+        <!-- ════════ LAST 2-3 GAME DRAWS (WINNING PICTURES) ════════ -->
+        <div class="section-draws-box">
+          <div class="draws-header">
+            <span class="draws-title">🏆 LAST DRAWS (10.0x WINNERS)</span>
+            <span style="color: var(--accent-green); font-size: 9px; font-weight: 800;">VERIFIED</span>
+          </div>
+
+          <div class="draws-grid" id="recent-draws-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- ════════ LIVE PLAYER BETS FEED (USER ID & MONEY ON PICTURE) ════════ -->
+        <div class="section-bets-feed">
+          <div class="bets-feed-header">
+            <div>
+              <div class="feed-title">
+                <span class="live-pulse-dot"></span>
+                <span>Live Bets in Round</span>
+              </div>
+              <div class="feed-subtitle">Real-time player stakes across all 14 cards</div>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--accent-green);">10x PAYOUT</span>
+          </div>
+
+          <div class="bets-feed-list" id="bets-feed-container">
+            <!-- Live stakes populated -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- App Bottom Tab Bar -->
+      <nav class="app-bottom-nav">
+        <button class="nav-tab-btn active" onclick="showAppTab('arena')">
+          <span class="nav-tab-icon">🎮</span>
+          <span>Arena</span>
+        </button>
+        <button class="nav-tab-btn" onclick="openDepositModal()">
+          <span class="nav-tab-icon">💳</span>
+          <span>Deposit</span>
+        </button>
+        <button class="nav-tab-btn" onclick="openWithdrawModal()">
+          <span class="nav-tab-icon">🏦</span>
+          <span>Withdraw</span>
+        </button>
+        <button class="nav-tab-btn" onclick="openSupportModal()">
+          <span class="nav-tab-icon">💬</span>
+          <span>Support</span>
+        </button>
+      </nav>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       VIEW 2: SUPER ADMIN RISK & LIABILITY MANAGEMENT CONSOLE
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="admin-viewport" id="admin-view">
+    <div class="admin-card">
+      <div class="admin-title">
+        <span>🛡️ SUPER ADMIN RISK & REVENUE MANAGEMENT CONSOLE</span>
+        <span style="font-size: 11px; color: var(--accent-green);">Cluster Worker #1 Connected (Single Leader Active)</span>
+      </div>
+
+      <!-- Key Metrics -->
+      <div class="admin-metric-grid">
+        <div class="admin-metric-box">
+          <div class="admin-metric-val" id="adm-total-pool">₹28,500</div>
+          <div class="admin-metric-lbl">Total Round Pool</div>
+        </div>
+        <div class="admin-metric-box">
+          <div class="admin-metric-val" id="adm-projected-margin">24.8%</div>
+          <div class="admin-metric-lbl">Guaranteed House Margin</div>
+        </div>
+        <div class="admin-metric-box">
+          <div class="admin-metric-val" id="adm-max-exposure">₹14,200</div>
+          <div class="admin-metric-lbl">Max Liability Exposure</div>
+        </div>
+        <div class="admin-metric-box">
+          <div class="admin-metric-val" style="color: var(--accent-green);" id="adm-net-retention">₹7,068</div>
+          <div class="admin-metric-lbl">Retained Company Profit</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Grid: Liabilities Heatmap & Emergency Kill Switches -->
+    <div class="admin-grid">
+      <!-- 14 Cards Real-Time Heatmap -->
+      <div class="admin-card">
+        <div class="admin-title">
+          <span>📊 14-Card Real-Time Liabilities Heatmap</span>
+          <span style="font-size: 10px; color: var(--text-muted);">Payout: 10.0x Multiplier</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;" id="admin-liabilities-list">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Emergency Kill Switches -->
+      <div class="admin-card">
+        <div class="admin-title">
+          <span>🚨 Emergency Kill Switches</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted);">Instant fail-safe operational overrides broadcasted via Redis cluster pub/sub.</p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+          <button class="kill-switch-btn red" id="btn-toggle-freeze" onclick="adminToggleFreeze()">
+            <span>🔒</span>
+            <span id="btn-freeze-label">Emergency Freeze Betting (All Rooms)</span>
+          </button>
+
+          <button class="kill-switch-btn yellow" id="btn-toggle-halt" onclick="adminToggleHaltPayouts()">
+            <span>🛑</span>
+            <span id="btn-halt-label">Halt Automated IMPS Dispatches</span>
+          </button>
+
+          <button class="kill-switch-btn red" onclick="adminForceRefundRound()">
+            <span>🔄</span>
+            <span>Force Cancel & 100% Refund Round</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       VIEW 3: P2P DESK (AGENT DEPOSIT QUEUE)
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="admin-viewport" id="p2p-view">
+    <div class="admin-card">
+      <div class="admin-title">
+        <span>💳 P2P SETTLEMENT DESK — 12-DIGIT UTR VERIFICATION QUEUE</span>
+        <span style="font-size: 11px; color: var(--accent-green);">Auto-approves &lt; ₹2,000 | Manual 2-FA &ge; ₹2,000</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;" id="p2p-queue-list">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       MODALS: DEPOSIT, WITHDRAW, SUPPORT, WIN REVEAL
+       ══════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- 1. DEPOSIT MODAL -->
+  <div class="modal-backdrop" id="modal-deposit">
+    <div class="modal-card">
+      <button class="modal-close-btn" onclick="closeModal('modal-deposit')">✕</button>
+      <div>
+        <div class="modal-title"><span>💳</span> Add Funds (Instant Deposit)</div>
+        <div class="modal-subtitle">Direct UPI Intent, Auto-Pay Simulator & 24h Rotating QR</div>
+      </div>
+
+      <div style="display: flex; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 10px;">
+        <button style="flex:1; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: 800; background: var(--accent-green); color: #000; border: none; cursor: pointer;">1-Click Auto Pay</button>
+        <button style="flex:1; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: 700; background: none; color: var(--text-muted); border: none; cursor: pointer;" onclick="toggleQrMode()">Manual UTR Proof</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Deposit Amount (₹)</label>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px;">
+          <button class="chip-btn active" onclick="setDepositAmt(500)">₹500</button>
+          <button class="chip-btn" onclick="setDepositAmt(1000)">₹1,000</button>
+          <button class="chip-btn" onclick="setDepositAmt(2500)">₹2,500</button>
+          <button class="chip-btn" onclick="setDepositAmt(5000)">₹5,000</button>
+        </div>
+        <input type="number" id="input-deposit-amount" class="form-input" value="500">
+      </div>
+
+      <!-- Auto Pay Simulator Button -->
+      <button class="action-btn place-bet" onclick="executeSimulatedDeposit()">
+        ⚡ Simulate Instant Bank Gateway Credit
+      </button>
+
+      <div id="manual-qr-section" style="display: none;" class="deposit-qr-wrap">
+        <div style="font-size: 11px; font-weight: 800; color: #fff;">Scan Rotating Merchant QR</div>
+        <div class="qr-fake-img">
+          <div style="text-align: center; color: #000; font-size: 10px; font-weight: 800;">
+            [MERCHANT UPI QR]<br>apexarcade@okhdfcbank
+          </div>
+        </div>
+        <input type="text" id="input-utr-number" placeholder="Enter 12-digit UTR (e.g. 529188402911)" class="form-input" style="width: 100%;">
+        <button class="action-btn" style="width: 100%;" onclick="submitManualUtr()">Submit UTR to P2P Queue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. WITHDRAW MODAL -->
+  <div class="modal-backdrop" id="modal-withdraw">
+    <div class="modal-card">
+      <button class="modal-close-btn" onclick="closeModal('modal-withdraw')">✕</button>
+      <div>
+        <div class="modal-title"><span>🏦</span> Withdraw Winnings</div>
+        <div class="modal-subtitle">Instant 24x7 IMPS Bank Transfer & UPI Payout</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Withdrawal Amount (₹)</label>
+        <input type="number" id="input-withdraw-amount" class="form-input" value="1000">
+        <span style="font-size: 10px; color: var(--accent-green);">⚡ &lt; ₹2,000 dispatches instantly via IMPS | &ge; ₹2,000 routes to 2-FA Review</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">UPI ID or VPA</label>
+        <input type="text" id="input-withdraw-upi" class="form-input" value="player@okhdfcbank">
+      </div>
+
+      <div style="background: rgba(255,255,255,0.04); padding: 10px; border-radius: 12px; font-size: 11px; display: flex; justify-content: space-between;">
+        <span style="color: var(--text-muted);">Section 194BA TDS (30% on Net Winnings):</span>
+        <span style="font-weight: 800; color: #fff;">₹0.00 (Exempt)</span>
+      </div>
+
+      <button class="action-btn place-bet" onclick="executeWithdrawalRequest()">
+        Confirm Payout Dispatch
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. CUSTOMER SUPPORT CHAT MODAL -->
+  <div class="modal-backdrop" id="modal-support">
+    <div class="modal-card" style="height: 480px; display: flex; flex-direction: column;">
+      <button class="modal-close-btn" onclick="closeModal('modal-support')">✕</button>
+      <div>
+        <div class="modal-title"><span>💬</span> 24/7 Live Concierge Support</div>
+        <div class="modal-subtitle">Average response time: &lt; 1 minute</div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; background: #161b26; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;" id="chat-messages-container">
+        <div style="background: #1e2433; padding: 8px 12px; border-radius: 10px; font-size: 11px; align-self: flex-start; max-width: 85%;">
+          Hello! Welcome to Apex Arcade 24/7 Support. How can we assist you with deposits, game rules, or withdrawals today?
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="chat-input" placeholder="Type your query..." class="form-input" style="flex: 1;" onkeypress="if(event.key === 'Enter') sendChatMessage()">
+        <button class="action-btn place-bet" style="padding: 0 16px;" onclick="sendChatMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. WIN REVEAL CELEBRATION MODAL -->
+  <div class="modal-backdrop" id="modal-win-reveal">
+    <div class="modal-card" style="text-align: center; border-color: var(--accent-gold);">
+      <button class="modal-close-btn" onclick="closeModal('modal-win-reveal')">✕</button>
+      <div style="font-size: 64px; margin: 10px 0;" id="reveal-card-emoji">🦁</div>
+      <h2 style="font-family: var(--font-display); font-size: 26px; font-weight: 900; color: #fff;" id="reveal-card-title">LION WON!</h2>
+      <div style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-gold); font-weight: 800; margin: 4px 0 14px 0;">10.0x PAYOUT MULTIPLIER</div>
+      
+      <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 14px; margin-bottom: 12px;" id="reveal-win-summary">
+        <div style="font-size: 11px; color: var(--text-muted);">Your Win on this Card:</div>
+        <div style="font-family: var(--font-mono); font-size: 24px; font-weight: 900; color: var(--accent-green);" id="reveal-win-amount">₹5,000.00</div>
+      </div>
+
+      <button class="action-btn place-bet" onclick="closeModal('modal-win-reveal')">
+        Collect &amp; Play Next Round
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Bar -->
+  <div class="toast-box" id="toast-bar">
+    <span id="toast-icon">✨</span>
+    <span id="toast-msg">Notification Message</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       INTERACTIVE ENGINE SCRIPT (100% STANDALONE ZERO-DEPENDENCY JAVASCRIPT)
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ── 14 PICTURE CARDS DATA ──
+    const PICTURE_CARDS = [
+      { id: 1, name: 'Lion', symbol: '🦁' },
+      { id: 2, name: 'Tiger', symbol: '🐯' },
+      { id: 3, name: 'Elephant', symbol: '🐘' },
+      { id: 4, name: 'Horse', symbol: '🐴' },
+      { id: 5, name: 'Eagle', symbol: '🦅' },
+      { id: 6, name: 'Dragon', symbol: '🐉' },
+      { id: 7, name: 'King Cobra', symbol: '🐍' },
+      { id: 8, name: 'Black Panther', symbol: '🐆' },
+      { id: 9, name: 'Golden Stag', symbol: '🦌' },
+      { id: 10, name: 'Wolf', symbol: '🐺' },
+      { id: 11, name: 'Falcon', symbol: '🦜' },
+      { id: 12, name: 'Bull', symbol: '🐂' },
+      { id: 13, name: 'Rhino', symbol: '🦏' },
+      { id: 14, name: 'Cheetah', symbol: '🐆' }
+    ];
+
+    // ── RUNTIME STATE ──
+    let userBalance = 6000.00;
+    let selectedChip = 10;
+    let currentStakes = {}; // cardId -> amount
+    let roundNumber = 142;
+    let secondsRemaining = 38;
+    let isLocked = false;
+    let isFrozen = false;
+    let isHalted = false;
+
+    // Last 3 draws history
+    let recentDraws = [
+      { roundNumber: 141, cardId: 1, name: 'Lion', symbol: '🦁' },
+      { roundNumber: 140, cardId: 5, name: 'Eagle', symbol: '🦅' },
+      { roundNumber: 139, cardId: 2, name: 'Tiger', symbol: '🐯' }
+    ];
+
+    // Live bets feed
+    let liveBetsFeed = [
+      { id: 'b1', userId: 'u-9941', cardId: 1, amount: 200, isSelf: false },
+      { id: 'b2', userId: 'u-3204', cardId: 3, amount: 500, isSelf: false },
+      { id: 'b3', userId: 'u-7819', cardId: 6, amount: 1000, isSelf: false },
+      { id: 'b4', userId: 'u-1102', cardId: 8, amount: 100, isSelf: false }
+    ];
+
+    // P2P Pending Queue
+    let p2pQueue = [
+      { id: 'tx-p2p-1', userId: 'u-8841', phone: '9876543210', amount: 500, utr: '529188402911', time: '1m ago' },
+      { id: 'tx-p2p-2', userId: 'u-5529', phone: '9822019944', amount: 2000, utr: '529188994821', time: '2m ago' }
+    ];
+
+    // ── INITIALIZATION ──
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCardsGrid();
+      renderRecentDraws();
+      renderLiveBetsFeed();
+      renderAdminLiabilities();
+      renderP2PQueue();
+      startRoundClock();
+    });
+
+    // ── AUDIO SYNTHESIZER (ZERO-FILE DEPENDENCY) ──
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 440, type = 'sine', duration = 0.08) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // ── RENDER 14 PICTURE CARDS ──
+    function renderCardsGrid() {
+      const container = document.getElementById('cards-container');
+      container.innerHTML = '';
+
+      PICTURE_CARDS.forEach(card => {
+        const staked = currentStakes[card.id] || 0;
+        const div = document.createElement('div');
+        div.className = `card-item ${staked > 0 ? 'selected' : ''}`;
+        div.id = `card-node-${card.id}`;
+        div.onclick = () => onCardClicked(card.id);
+
+        div.innerHTML = `
+          <span class="card-id-tag">#${card.id}</span>
+          <span class="card-payout-tag">10x</span>
+          <div class="card-symbol">${card.symbol}</div>
+          <div class="card-name">${card.name}</div>
+          <div class="card-bet-badge" id="bet-badge-${card.id}">
+            ${staked > 0 ? '₹' + staked : '-'}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // ── CARD CLICK HANDLER ──
+    function onCardClicked(cardId) {
+      if (isLocked) {
+        showToast('🔒 Bets locked for last 10 seconds of round!', '⚠️');
+        return;
+      }
+      if (isFrozen) {
+        showToast('🚨 Betting is paused by administration', '⚠️');
+        return;
+      }
+      if (userBalance < selectedChip) {
+        showToast('Insufficient wallet balance! Please deposit.', '❌');
+        return;
+      }
+
+      playBeep(520, 'triangle', 0.05);
+      currentStakes[cardId] = (currentStakes[cardId] || 0) + selectedChip;
+      updateTotalStakedSummary();
+      renderCardsGrid();
+    }
+
+    function selectChip(val) {
+      selectedChip = val;
+      playBeep(600, 'sine', 0.04);
+      document.querySelectorAll('.chip-btn').forEach(b => {
+        if (b.innerText === '₹' + (val >= 1000 ? val/1000 + 'k' : val)) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+      });
+    }
+
+    function clearCurrentBets() {
+      currentStakes = {};
+      updateTotalStakedSummary();
+      renderCardsGrid();
+      playBeep(300, 'sine', 0.06);
+    }
+
+    function doubleCurrentBets() {
+      for (const cid in currentStakes) {
+        currentStakes[cid] = currentStakes[cid] * 2;
+      }
+      updateTotalStakedSummary();
+      renderCardsGrid();
+      playBeep(700, 'sine', 0.06);
+    }
+
+    function updateTotalStakedSummary() {
+      let total = 0;
+      for (const cid in currentStakes) total += currentStakes[cid];
+      document.getElementById('total-staked-summary').innerText = '₹' + total;
+      return total;
+    }
+
+    function confirmCurrentBets() {
+      const total = updateTotalStakedSummary();
+      if (total === 0) {
+        showToast('Please select cards to stake on!', 'ℹ️');
+        return;
+      }
+      if (userBalance < total) {
+        showToast('Insufficient wallet balance!', '❌');
+        return;
+      }
+
+      // Atomic wallet balance deduction
+      userBalance -= total;
+      updateWalletBalanceUI();
+
+      // Push to live bets feed
+      for (const cid in currentStakes) {
+        const amt = currentStakes[cid];
+        liveBetsFeed.unshift({
+          id: 'b-self-' + Date.now() + Math.random(),
+          userId: 'YOU',
+          cardId: parseInt(cid),
+          amount: amt,
+          isSelf: true
+        });
+      }
+      renderLiveBetsFeed();
+      renderAdminLiabilities();
+
+      showToast(`Stakes confirmed: ₹${total} placed!`, '✅');
+      playBeep(880, 'sine', 0.12);
+    }
+
+    function updateWalletBalanceUI() {
+      const el = document.getElementById('wallet-balance');
+      el.innerText = '₹' + userBalance.toFixed(2);
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 600);
+    }
+
+    // ── RECENT DRAWS (LAST 2-3 PICTURE CARDS) ──
+    function renderRecentDraws() {
+      const container = document.getElementById('recent-draws-container');
+      container.innerHTML = '';
+      recentDraws.slice(0, 3).forEach(draw => {
+        const div = document.createElement('div');
+        div.className = 'draw-card-thumb';
+        div.innerHTML = `
+          <div class="draw-card-emoji">${draw.symbol}</div>
+          <div class="draw-card-name">${draw.name}</div>
+          <div class="draw-round-number">#${draw.roundNumber}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // ── LIVE PLAYER BETS FEED ──
+    function renderLiveBetsFeed() {
+      const container = document.getElementById('bets-feed-container');
+      container.innerHTML = '';
+      liveBetsFeed.slice(0, 10).forEach(b => {
+        const card = PICTURE_CARDS.find(c => c.id === b.cardId) || PICTURE_CARDS[0];
+        const div = document.createElement('div');
+        div.className = `bet-feed-row ${b.isSelf ? 'self' : ''}`;
+        div.innerHTML = `
+          <div class="feed-user-id">
+            <span>👤 ${b.userId}</span>
+            ${b.isSelf ? '<span class="feed-self-badge">YOU</span>' : ''}
+          </div>
+          <div class="feed-card-staked">
+            <span>${card.symbol}</span>
+            <span>#${card.id} ${card.name}</span>
+          </div>
+          <div class="feed-amount-staked">
+            ₹${b.amount}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // ── CLOCK & GAME LOOP (AUTO-OPTIMIZED WINNER & PAYOUT) ──
+    function startRoundClock() {
+      setInterval(() => {
+        if (isFrozen) return;
+
+        secondsRemaining -= 1;
+        const clockEl = document.getElementById('countdown-clock');
+        const counterEl = document.getElementById('seconds-counter');
+        const statusLabel = document.getElementById('arena-status-label');
+
+        counterEl.innerText = `${secondsRemaining}s`;
+
+        // At T-10 seconds: STRICT 10-SECOND LOCKOUT
+        if (secondsRemaining <= 10 && secondsRemaining > 0) {
+          isLocked = true;
+          clockEl.className = 'clock-tag warning';
+          statusLabel.innerText = 'LOCKED (DRAWING)';
+          statusLabel.style.color = '#EF4444';
+          document.getElementById('freeze-alert-banner').style.display = 'block';
+          document.getElementById('btn-submit-bets').disabled = true;
+        } else if (secondsRemaining > 10) {
+          isLocked = false;
+          clockEl.className = 'clock-tag normal';
+          statusLabel.innerText = 'BETTING OPEN';
+          statusLabel.style.color = 'var(--accent-green)';
+          document.getElementById('freeze-alert-banner').style.display = 'none';
+          document.getElementById('btn-submit-bets').disabled = false;
+        }
+
+        // Random bot bet injection to keep arena active
+        if (secondsRemaining > 12 && secondsRemaining % 5 === 0) {
+          const randCard = Math.floor(Math.random() * 14) + 1;
+          const randAmt = [50, 100, 200, 500][Math.floor(Math.random() * 4)];
+          const randUser = 'u-' + Math.floor(1000 + Math.random() * 9000);
+          liveBetsFeed.unshift({
+            id: 'bot-' + Date.now(),
+            userId: randUser,
+            cardId: randCard,
+            amount: randAmt,
+            isSelf: false
+          });
+          renderLiveBetsFeed();
+          renderAdminLiabilities();
+        }
+
+        // At 0 seconds: RESOLVE ROUND & WINNER
+        if (secondsRemaining <= 0) {
+          resolveRoundOutcome();
+          secondsRemaining = 45; // Reset next round
+          roundNumber += 1;
+          document.getElementById('arena-round-number').innerText = `ROUND #${roundNumber}`;
+        }
+      }, 1000);
+    }
+
+    function resolveRoundOutcome() {
+      // Guaranteed house margin engine: selects a winning card
+      // In demonstration, picks card #1 (Lion) or card #2 (Tiger)
+      const winningCardId = Math.random() > 0.5 ? 1 : 2;
+      const card = PICTURE_CARDS.find(c => c.id === winningCardId);
+
+      // Highlight winning card in grid
+      const cardNode = document.getElementById(`card-node-${winningCardId}`);
+      if (cardNode) cardNode.classList.add('winning');
+      setTimeout(() => {
+        if (cardNode) cardNode.classList.remove('winning');
+      }, 4000);
+
+      // Add to recent draws
+      recentDraws.unshift({
+        roundNumber: roundNumber,
+        cardId: winningCardId,
+        name: card.name,
+        symbol: card.symbol
+      });
+      renderRecentDraws();
+
+      // Check user win
+      const userStake = currentStakes[winningCardId] || 0;
+      if (userStake > 0) {
+        const payout = userStake * 10.0;
+        userBalance += payout;
+        updateWalletBalanceUI();
+
+        // Celebration modal
+        document.getElementById('reveal-card-emoji').innerText = card.symbol;
+        document.getElementById('reveal-card-title').innerText = `${card.name.toUpperCase()} WON!`;
+        document.getElementById('reveal-win-amount').innerText = `₹${payout.toFixed(2)}`;
+        openModal('modal-win-reveal');
+        playBeep(980, 'triangle', 0.3);
+      } else {
+        showToast(`Round #${roundNumber} Winner: #${card.id} ${card.name} (${card.symbol})`, '🏆');
+      }
+
+      // Reset stakes for next round
+      currentStakes = {};
+      updateTotalStakedSummary();
+      renderCardsGrid();
+    }
+
+    // ── SUPER ADMIN CONSOLE FUNCTIONS ──
+    function renderAdminLiabilities() {
+      const container = document.getElementById('admin-liabilities-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let totalPool = 14200;
+      for (const cid in currentStakes) totalPool += currentStakes[cid];
+      document.getElementById('adm-total-pool').innerText = '₹' + totalPool.toLocaleString('en-IN');
+
+      PICTURE_CARDS.forEach(card => {
+        const cardBets = (currentStakes[card.id] || 0) + (card.id === 1 ? 1200 : 400);
+        const payout = cardBets * 10.0;
+        const net = payout - totalPool;
+
+        const div = document.createElement('div');
+        div.style = "background: #181d29; border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;";
+        div.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span>${card.symbol}</span>
+            <span style="font-weight: 700;">#${card.id} ${card.name}</span>
+          </div>
+          <div style="font-family: var(--font-mono); font-weight: 800; color: ${net > 0 ? '#f87171' : 'var(--accent-green)'};">
+            Liab: ₹${payout.toLocaleString('en-IN')}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function adminToggleFreeze() {
+      isFrozen = !isFrozen;
+      const btn = document.getElementById('btn-freeze-label');
+      btn.innerText = isFrozen ? 'Resume Betting (UNFREEZE)' : 'Emergency Freeze Betting (All Rooms)';
+      document.getElementById('freeze-alert-banner').style.display = isFrozen ? 'block' : 'none';
+      showToast(isFrozen ? 'Emergency Freeze Activated!' : 'Betting Resumed!', '🚨');
+    }
+
+    function adminToggleHaltPayouts() {
+      isHalted = !isHalted;
+      const btn = document.getElementById('btn-halt-label');
+      btn.innerText = isHalted ? 'Resume Automated Payouts' : 'Halt Automated IMPS Dispatches';
+      showToast(isHalted ? 'Payouts Halted (Queued for review)' : 'Automated IMPS Resumed!', '🛑');
+    }
+
+    function adminForceRefundRound() {
+      userBalance += updateTotalStakedSummary();
+      currentStakes = {};
+      updateTotalStakedSummary();
+      updateWalletBalanceUI();
+      renderCardsGrid();
+      showToast('Round cancelled! 100% of stakes refunded to players.', '🔄');
+    }
+
+    // ── P2P DESK FUNCTIONS ──
+    function renderP2PQueue() {
+      const container = document.getElementById('p2p-queue-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (p2pQueue.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 20px;">No pending UTR deposits in queue. All cleared!</div>';
+        return;
+      }
+
+      p2pQueue.forEach(item => {
+        const div = document.createElement('div');
+        div.style = "background: #181d29; border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;";
+        div.innerHTML = `
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #fff;">User ${item.userId} (+91 ${item.phone})</div>
+            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold); margin-top: 2px;">
+              UTR: <strong>${item.utr}</strong> · Amount: ₹${item.amount} (${item.time})
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button onclick="approveP2PDeposit('${item.id}', ${item.amount})" style="background: var(--accent-green); color: #000; border: none; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer;">Approve</button>
+            <button onclick="rejectP2PDeposit('${item.id}')" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Reject</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function approveP2PDeposit(id, amt) {
+      p2pQueue = p2pQueue.filter(x => x.id !== id);
+      userBalance += amt;
+      updateWalletBalanceUI();
+      renderP2PQueue();
+      showToast(`P2P Deposit ₹${amt} approved! Balance credited.`, '✅');
+    }
+
+    function rejectP2PDeposit(id) {
+      p2pQueue = p2pQueue.filter(x => x.id !== id);
+      renderP2PQueue();
+      showToast('Deposit proof rejected.', '⚠️');
+    }
+
+    // ── MODAL HELPERS ──
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function openDepositModal() { openModal('modal-deposit'); }
+    function openWithdrawModal() { openModal('modal-withdraw'); }
+    function openSupportModal() { openModal('modal-support'); }
+
+    function setDepositAmt(val) {
+      document.getElementById('input-deposit-amount').value = val;
+    }
+
+    function toggleQrMode() {
+      const el = document.getElementById('manual-qr-section');
+      el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function executeSimulatedDeposit() {
+      const amt = parseFloat(document.getElementById('input-deposit-amount').value) || 500;
+      userBalance += amt;
+      updateWalletBalanceUI();
+      closeModal('modal-deposit');
+      showToast(`Auto-Gateway Clearance: ₹${amt} credited instantly!`, '💰');
+      playBeep(780, 'sine', 0.15);
+    }
+
+    function submitManualUtr() {
+      const utr = document.getElementById('input-utr-number').value.trim();
+      const amt = parseFloat(document.getElementById('input-deposit-amount').value) || 500;
+      if (!/^\d{12}$/.test(utr)) {
+        showToast('UTR must be exactly 12 numeric digits!', '❌');
+        return;
+      }
+      p2pQueue.unshift({
+        id: 'tx-manual-' + Date.now(),
+        userId: 'YOU',
+        phone: '9876543210',
+        amount: amt,
+        utr: utr,
+        time: 'Just now'
+      });
+      renderP2PQueue();
+      closeModal('modal-deposit');
+      showToast('UTR submitted to P2P Settlement Queue. Agent will verify.', '📥');
+    }
+
+    function executeWithdrawalRequest() {
+      const amt = parseFloat(document.getElementById('input-withdraw-amount').value) || 1000;
+      if (amt < 500) {
+        showToast('Minimum withdrawal is ₹500', '❌');
+        return;
+      }
+      if (userBalance < amt) {
+        showToast('Insufficient wallet balance!', '❌');
+        return;
+      }
+
+      userBalance -= amt;
+      updateWalletBalanceUI();
+      closeModal('modal-withdraw');
+
+      if (amt < 2000) {
+        const utr = `IMPS${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+        showToast(`Instant IMPS Dispatched: ₹${amt} sent! Bank UTR: ${utr}`, '🏦');
+      } else {
+        showToast(`High-value withdrawal ₹${amt} queued for Super Admin 2-FA Review`, '🛡️');
+      }
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const container = document.getElementById('chat-messages-container');
+      const userBubble = document.createElement('div');
+      userBubble.style = "background: var(--accent-green); color: #000; font-weight: 700; padding: 8px 12px; border-radius: 10px; font-size: 11px; align-self: flex-end; max-width: 85%;";
+      userBubble.innerText = text;
+      container.appendChild(userBubble);
+      input.value = '';
+
+      setTimeout(() => {
+        const botBubble = document.createElement('div');
+        botBubble.style = "background: #1e2433; padding: 8px 12px; border-radius: 10px; font-size: 11px; align-self: flex-start; max-width: 85%;";
+        botBubble.innerText = `Agent Priya: Thank you for reaching out! Regarding "${text}", our banking system confirms all operations are 100% active.`;
+        container.appendChild(botBubble);
+        container.scrollTop = container.scrollHeight;
+      }, 600);
+    }
+
+    // ── ROLE VIEW SWITCHER ──
+    function switchRole(role) {
+      document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+      const playerView = document.getElementById('player-view');
+      const adminView = document.getElementById('admin-view');
+      const p2pView = document.getElementById('p2p-view');
+
+      playerView.style.display = 'none';
+      adminView.style.display = 'none';
+      p2pView.style.display = 'none';
+
+      if (role === 'player') {
+        event.currentTarget.classList.add('active');
+        playerView.style.display = 'flex';
+      } else if (role === 'admin') {
+        event.currentTarget.classList.add('active');
+        adminView.style.display = 'flex';
+        renderAdminLiabilities();
+      } else if (role === 'p2p') {
+        event.currentTarget.classList.add('active');
+        p2pView.style.display = 'flex';
+        renderP2PQueue();
+      }
+    }
+
+    // ── TOAST MESSENGER ──
+    function showToast(msg, icon = '✨') {
+      const el = document.getElementById('toast-bar');
+      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-icon').innerText = icon;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2800);
+    }
+  </script>
+</body>
+</html>
