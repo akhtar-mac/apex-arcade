@@ -300,9 +300,10 @@ export default function MobileApp() {
   placedBetsRef.current = placedBets;
 
   const backendHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const isTunnel = typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.startsWith('192.168.') && !window.location.hostname.startsWith('127.0.0.1');
+  const isCapacitorNative = typeof window !== 'undefined' && (Boolean((window as any).Capacitor?.isNativePlatform?.()) || window.location.protocol === 'capacitor:');
+  const isLocalHost = backendHost === 'localhost' || backendHost === '127.0.0.1' || backendHost.startsWith('192.168.');
   const API_BASE = import.meta.env.VITE_API_URL
-    || (isTunnel ? (typeof window !== 'undefined' ? window.location.origin : '') : `http://${backendHost}:4000`);
+    || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
 
   // Fetch live active rotated UPI account on mount
   useEffect(() => {

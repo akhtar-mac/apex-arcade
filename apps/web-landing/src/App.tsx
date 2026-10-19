@@ -50,8 +50,9 @@ export default function LandingApp() {
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | 'responsible' | null>(null);
   const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: "India's #1 Picture Betting", logoUrl: '' });
 
-  const apiBase = (import.meta as any).env?.VITE_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:4000` : 'http://localhost:4000');
-  const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5174` : 'http://localhost:5174');
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
+  const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? `http://${window.location.hostname}:4000` : 'https://apex-arcade-api.onrender.com');
+  const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (isLocalHost ? `http://${window.location.hostname}:5174` : 'https://apex-mobile-app.onrender.com');
 
   useEffect(() => {
     fetch(`${apiBase}/api/v1/brand`).then(r => r.json()).then(json => {

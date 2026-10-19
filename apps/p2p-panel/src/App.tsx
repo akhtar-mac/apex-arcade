@@ -88,9 +88,9 @@ export default function P2PApp() {
   const [copied, setCopied] = useState('');
 
   const backendHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const isTunnel = typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.startsWith('192.168.') && !window.location.hostname.startsWith('127.0.0.1');
+  const isLocalHost = backendHost === 'localhost' || backendHost === '127.0.0.1' || backendHost.startsWith('192.168.');
   const API_BASE = import.meta.env.VITE_API_URL
-    || (isTunnel ? (typeof window !== 'undefined' ? window.location.origin : '') : `http://${backendHost}:4000`);
+    || (!isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
 
   const [agentStats, setAgentStats] = useState({
     name: 'Desk',
