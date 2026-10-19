@@ -195,7 +195,7 @@ app.get('/', (req: Request, res: Response) => {
       <a href="http://${host}:5173" class="portal-link">
         <span class="portal-icon">🌐</span>
         <div class="portal-info">
-          <div>Website & APK</div>
+          <div>Website & App</div>
           <span class="portal-tag">PORT :5173</span>
         </div>
         <span>➔</span>

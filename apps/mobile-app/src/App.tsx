@@ -1588,10 +1588,10 @@ export default function MobileApp() {
           </p>
           <a
             href={landingApkUrl}
-            download
+            download="Apex-Arcade-App.apk"
             className="w-full py-3.5 rounded-xl bg-[#00F59B] text-black font-black text-sm flex items-center justify-center gap-2 pressable"
           >
-            Download Android APK
+            Download Official App
           </a>
           <a
             href="https://apex-web-landing-o6u0.onrender.com"
