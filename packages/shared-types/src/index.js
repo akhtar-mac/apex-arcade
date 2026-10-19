@@ -87,7 +87,7 @@ exports.PlaceBetSchema = zod_1.z.object({
     roomId: zod_1.z.string().min(1),
     roundId: zod_1.z.string().min(1),
     chosenCard: zod_1.z.number().int().min(1).max(14, 'Chosen card must be between 1 and 14'),
-    amount: zod_1.z.number().positive().min(10, 'Minimum bet is ₹10')
+    amount: zod_1.z.number().positive().min(10, 'Minimum bet is ₹10').max(5000, 'Maximum bet is ₹5,000 per card')
 });
 // ==========================================
 // 6. PAYMENTS & P2P UTR SCHEMAS
