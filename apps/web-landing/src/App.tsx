@@ -52,7 +52,7 @@ export default function LandingApp() {
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
   const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? `http://${window.location.hostname}:4000` : 'https://apex-arcade-api.onrender.com');
-  const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (isLocalHost ? `http://${window.location.hostname}:5174` : 'https://apex-mobile-app.onrender.com');
+  const apkUrl = '/downloads/apex-arcade-debug.apk';
 
   useEffect(() => {
     fetch(`${apiBase}/api/v1/brand`).then(r => r.json()).then(json => {
@@ -84,7 +84,7 @@ export default function LandingApp() {
   ];
 
   const steps = [
-    { num: '01', icon: '📱', title: 'Open the player', desc: 'Install the debug APK from this page, or open the web player. The Play Store build is not published.' },
+    { num: '01', icon: '📱', title: 'Install the Android APK', desc: 'Download and install the Android APK from this website to play.' },
     { num: '02', icon: '💳', title: 'Pay the desk QR', desc: 'Scan the published QR, then submit the 12-digit UTR. The wallet changes after an agent matches it.' },
     { num: '03', icon: '🎴', title: 'Pick Your Card', desc: 'Choose from 14 picture symbols. The smallest bet is ₹10.' },
     { num: '04', icon: '🏆', title: 'Win 10×', desc: 'If your card wins, 10× is added to the play wallet. A cash withdrawal waits for the desk.' },
@@ -164,8 +164,8 @@ export default function LandingApp() {
               className="glow-btn bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition shadow-lg"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Open player</span>
-              <span className="sm:hidden">Get App</span>
+              <span className="hidden sm:inline">Download APK</span>
+              <span className="sm:hidden">Get APK</span>
             </button>
 
             <button type="button" aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} className="md:hidden w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-400" onClick={() => setMobileMenuOpen(v => !v)}>
@@ -225,7 +225,7 @@ export default function LandingApp() {
               className="glow-btn w-full sm:w-auto bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-emerald-500/20"
             >
               <Download className="w-5 h-5" />
-              Open the web player
+              Download Android APK
             </button>
             <a
               href="#mechanics"
@@ -514,15 +514,15 @@ export default function LandingApp() {
           <div className="p-8 sm:p-12 rounded-3xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(13,245,157,0.08), rgba(0,229,255,0.06), rgba(255,184,0,0.05))' }}>
             <div className="absolute inset-0 pointer-events-none" style={{ border: '1px solid rgba(13,245,157,0.2)', borderRadius: '1.5rem' }} />
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">Ready to Win?</h2>
-            <p className="text-slate-400 text-sm mb-8">Open the web player. New accounts start at ₹0.</p>
+            <p className="text-slate-400 text-sm mb-8">Download and install the Android APK to play. New accounts start at ₹0.</p>
             <button
               onClick={() => setDownloadModal(true)}
               className="glow-btn bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-lg px-10 py-4 rounded-2xl hover:scale-105 active:scale-95 transition shadow-xl shadow-emerald-500/25 mx-auto flex items-center gap-3"
             >
               <Download className="w-5 h-5" />
-              Open the web player
+              Download Android APK
             </button>
-            <p className="text-[11px] text-slate-500 mt-4">Debug APK on this page. Not a Play Store release.</p>
+            <p className="text-[11px] text-slate-500 mt-4">Direct APK install for Android phones. Not a Play Store listing.</p>
           </div>
         </div>
       </section>
@@ -595,17 +595,17 @@ export default function LandingApp() {
 
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto mb-4">📱</div>
-              <h3 className="text-2xl font-black text-white">Download {brand.appName}</h3>
-              <p className="text-sm text-slate-400 mt-1">Debug APK for this computer. It is not signed for the Play Store.</p>
+              <h3 className="text-2xl font-black text-white">Install {brand.appName} APK</h3>
+              <p className="text-sm text-slate-400 mt-1">Install the Android app to register, deposit, and play in the arena.</p>
             </div>
 
             {/* Steps */}
             <div className="space-y-3 mb-6">
               {[
-                'Open the web player on this computer.',
-                'Sign in with your phone. A new wallet starts at ₹0.',
-                'Pay only a QR the desk has published.',
-                'Submit the 12-digit UTR and wait for a match.',
+                'Download and install the Android APK on your phone.',
+                'Register or sign in with your mobile number (starts at ₹0).',
+                'Pay the published desk QR and submit your 12-digit UTR.',
+                'Enter the arena once the desk matches your UTR.',
               ].map((step, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm text-slate-300">
                   <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-[#0df59d] font-black text-[10px] flex items-center justify-center shrink-0 border border-emerald-500/20">
@@ -618,22 +618,13 @@ export default function LandingApp() {
 
             <div className="space-y-2.5">
               <a
-                href="/downloads/apex-arcade-debug.apk"
+                href={apkUrl}
                 download
                 onClick={() => setDownloadModal(false)}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-emerald-500/20"
               >
                 <Download className="w-4 h-4" />
-                Download the debug APK
-              </a>
-
-              <a
-                href={playerUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 transition border border-emerald-500/20"
-              >
-                <span>⚡ Play Instantly in Web App</span>
+                Download Android APK
               </a>
             </div>
           </div>

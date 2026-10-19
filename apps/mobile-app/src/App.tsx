@@ -300,8 +300,14 @@ export default function MobileApp() {
   placedBetsRef.current = placedBets;
 
   const backendHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const isCapacitorNative = typeof window !== 'undefined' && (Boolean((window as any).Capacitor?.isNativePlatform?.()) || window.location.protocol === 'capacitor:');
+  const isCapacitorNative = typeof window !== 'undefined' && (
+    Boolean((window as any).Capacitor?.isNativePlatform?.())
+    || (window as any).Capacitor?.getPlatform?.() === 'android'
+    || (window as any).Capacitor?.getPlatform?.() === 'ios'
+    || window.location.protocol === 'capacitor:'
+  );
   const isLocalHost = backendHost === 'localhost' || backendHost === '127.0.0.1' || backendHost.startsWith('192.168.');
+  const isAppAllowed = isCapacitorNative || isLocalHost;
   const API_BASE = import.meta.env.VITE_API_URL
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
 
@@ -1568,28 +1574,58 @@ export default function MobileApp() {
     );
   };
 
+  if (typeof window !== 'undefined' && !isAppAllowed) {
+    const landingApkUrl = 'https://apex-web-landing-o6u0.onrender.com/downloads/apex-arcade-debug.apk';
+    return (
+      <div className="min-h-[100dvh] w-full bg-[#08090C] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-full max-w-sm bg-[#111319] border border-white/[0.08] rounded-3xl p-6 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#00F59B]/10 border border-[#00F59B]/30 flex items-center justify-center text-[#00F59B] font-black text-xl mx-auto">
+            {brand.shortName.slice(0, 2)}
+          </div>
+          <h1 className="text-2xl font-black text-white">{brand.appName} is App-Only</h1>
+          <p className="text-xs text-[#94A3B8] leading-relaxed">
+            To register, deposit, and play in the 14-picture arena, install the official Android app on your phone.
+          </p>
+          <a
+            href={landingApkUrl}
+            download
+            className="w-full py-3.5 rounded-xl bg-[#00F59B] text-black font-black text-sm flex items-center justify-center gap-2 pressable"
+          >
+            Download Android APK
+          </a>
+          <a
+            href="https://apex-web-landing-o6u0.onrender.com"
+            className="block text-xs text-[#94A3B8] hover:text-white pt-1"
+          >
+            Visit Website & Rules
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // VIEW: AUTH SCREEN (If Logged Out)
   // ════════════════════════════════════════════════════════════════════════
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen overflow-y-auto bg-[#08090C] text-white flex flex-col justify-between p-6 max-w-md mx-auto">
-        <div className="pt-8">
+      <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#08090C] text-white flex flex-col justify-between px-4 sm:px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] max-w-md mx-auto">
+        <div className="pt-2 sm:pt-6">
           {/* Logo badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111319] border border-white/[0.08] text-xs mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111319] border border-white/[0.08] text-xs mb-4 sm:mb-6">
             <span className="w-2 h-2 rounded-full bg-[#00F59B] animate-pulse" />
             <span className="text-[#94A3B8] font-medium">APEX ARENA • 14 PICTURES</span>
           </div>
 
-          <h1 className="text-3xl font-black tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-1.5 sm:mb-2">
             Pick a card.<br />Win <span className="text-[#00F59B]">10×.</span>
           </h1>
-          <p className="text-sm text-[#94A3B8] mb-8">
+          <p className="text-xs sm:text-sm text-[#94A3B8] mb-5 sm:mb-6 leading-relaxed">
             14 cards, 10× payout. Rooms last 120, 180, or 240 seconds. Money moves only after the desk matches a 12-digit UTR.
           </p>
 
           {/* Auth Mode Switcher */}
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#111319] border border-white/[0.08] mb-6">
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#111319] border border-white/[0.08] mb-5">
             <button
               onClick={() => setAuthMode('login')}
               className={`py-2 rounded-lg text-xs font-bold transition pressable ${
@@ -1709,18 +1745,19 @@ export default function MobileApp() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold block mb-1">
                     Mobile (+91) *
                   </label>
                   <input
                     type="tel"
+                    inputMode="numeric"
                     maxLength={10}
                     placeholder="9876543210"
                     value={regForm.phone}
                     onChange={e => setRegForm({ ...regForm, phone: e.target.value.replace(/\D/g, '') })}
-                    className="w-full bg-[#111319] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-white font-mono-numbers outline-none focus:border-[#00F59B]"
+                    className="w-full bg-[#111319] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-base sm:text-xs text-white font-mono-numbers outline-none focus:border-[#00F59B]"
                   />
                 </div>
                 <div>
@@ -1732,7 +1769,7 @@ export default function MobileApp() {
                     placeholder="e.g. Maharashtra"
                     value={regForm.state}
                     onChange={e => setRegForm({ ...regForm, state: e.target.value })}
-                    className="w-full bg-[#111319] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-[#00F59B]"
+                    className="w-full bg-[#111319] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-base sm:text-xs text-white outline-none focus:border-[#00F59B]"
                   />
                 </div>
               </div>
@@ -1830,9 +1867,9 @@ export default function MobileApp() {
   // VIEW: MAIN APPLICATION SHELL
   // ════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-[#08090C] text-white flex flex-col justify-between max-w-md mx-auto relative select-none pb-24">
+    <div className="min-h-[100dvh] w-full bg-[#08090C] text-white flex flex-col justify-between max-w-md mx-auto relative select-none pb-24">
       {/* ── TOP APP BAR ── */}
-      <header className="sticky top-0 z-30 bg-[#08090C]/90 backdrop-blur-md border-b border-white/[0.06] px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-30 bg-[#08090C]/90 backdrop-blur-md border-b border-white/[0.06] px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#111319] border border-white/[0.08] flex items-center justify-center font-black text-[#00F59B] text-sm overflow-hidden">
@@ -2645,7 +2682,7 @@ export default function MobileApp() {
       )}
 
       {/* ── FIXED BOTTOM NAVIGATION DOCK ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#08090C]/95 backdrop-blur-md border-t border-white/[0.06] py-2 px-6 max-w-md mx-auto flex items-center justify-between">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#08090C]/95 backdrop-blur-md border-t border-white/[0.06] pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-6 max-w-md mx-auto flex items-center justify-between">
         {[
           { id: 'lobby', label: 'Lobby', icon: Trophy },
           { id: 'arena', label: 'Arena', icon: Play },
