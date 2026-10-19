@@ -206,7 +206,11 @@ export default function MobileApp() {
   const [accountId, setAccountId] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [loginStep, setLoginStep] = useState<'phone' | 'otp'>('phone');
-  const [activeTab, setActiveTab] = useState<NavTab>('arena');
+  const [activeTab, setActiveTab] = useState<NavTab>('lobby');
+  const [walletReady, setWalletReady] = useState(false);
+  const [hasPaidDeposit, setHasPaidDeposit] = useState(false);
+  const [fundWizardOpen, setFundWizardOpen] = useState(false);
+  const [offerDismissed, setOfferDismissed] = useState(false);
 
   // User Balance & Sound
   const [balance, setBalance] = useState<number>(0);
@@ -326,6 +330,7 @@ export default function MobileApp() {
   };
 
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   // Hydrate user session from local SQL database on app load
   useEffect(() => {
@@ -340,6 +345,7 @@ export default function MobileApp() {
             const { user, wallet } = res.data;
             if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
             if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
+            setWalletReady(true);
             if (user?.id) setAccountId(user.id);
             if (user?.fullName) setUserName(user.fullName);
             if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
@@ -347,6 +353,8 @@ export default function MobileApp() {
             if (user?.email) setUserEmail(user.email);
             if (user?.state) setUserState(user.state);
             setIsLoggedIn(true);
+        setActiveTab('lobby');
+        setWalletReady(true);
           }
         })
         .catch(() => {});
@@ -361,6 +369,7 @@ export default function MobileApp() {
       return;
     }
     setIsSubmittingAuth(true);
+    setSendingOtp(true);
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/send-otp`, {
         method: 'POST',
@@ -377,6 +386,7 @@ export default function MobileApp() {
     } catch {
       showToast('Could not reach the login server.');
     } finally {
+      setSendingOtp(false);
       setIsSubmittingAuth(false);
     }
   };
@@ -411,7 +421,11 @@ export default function MobileApp() {
           if (user?.upiId) setWithdrawUpi(user.upiId);
           if (user?.email) setUserEmail(user.email);
           if (user?.state) setUserState(user.state);
+          setFundWizardOpen(false);
+          setOfferDismissed(false);
           setIsLoggedIn(true);
+          setActiveTab('lobby');
+          setWalletReady(true);
           showToast(`Welcome back, ${user.fullName || 'Player'}!`);
         }
       } else {
@@ -424,18 +438,10 @@ export default function MobileApp() {
     }
   };
 
-  const handleQuickDemoLoginClick = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      showToast('Enter your phone, then use demo code 1234.');
-      return;
-    }
+  const handleShowcaseLoginClick = async () => {
     setIsSubmittingAuth(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/quick-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, otp: '1234' })
-      });
+      const res = await fetch(`${API_BASE}/api/v1/auth/demo-login`, { method: 'POST' });
       const data = await res.json();
       if (data.success && data.data) {
         const { user, wallet, accessToken } = data.data;
@@ -446,12 +452,16 @@ export default function MobileApp() {
         if (user?.fullName) setUserName(user.fullName);
         if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
         if (user?.upiId) setWithdrawUpi(user.upiId);
-        if (user?.email) setUserEmail(user.email);
+        if (user?.email) setUserEmail(user.email || '');
         if (user?.state) setUserState(user.state);
+        setFundWizardOpen(false);
+        setOfferDismissed(false);
         setIsLoggedIn(true);
-        showToast(`Signed in. Playable balance ₹${Number(wallet.balance).toLocaleString('en-IN')}.`);
+        setActiveTab('lobby');
+        setWalletReady(true);
+        showToast(`Demo account open. Balance ₹${Number(wallet?.balance || 0).toLocaleString('en-IN')}.`);
       } else {
-        showToast(data.error || 'Quick login failed.');
+        showToast(data.error || 'Demo login is not available.');
       }
     } catch {
       showToast('Could not reach the login server.');
@@ -461,8 +471,20 @@ export default function MobileApp() {
   };
 
   const handleRegisterSubmit = async () => {
-    if (!regForm.fullName || regForm.phone.length !== 10 || !regForm.ageConfirmed) {
-      showToast('Please fill all required fields and confirm age.');
+    if (!regForm.fullName.trim() || regForm.fullName.trim().length < 2) {
+      showToast('Enter your full name.');
+      return;
+    }
+    if (regForm.phone.length !== 10) {
+      showToast('Enter a 10-digit mobile number.');
+      return;
+    }
+    if (regForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email.trim())) {
+      showToast('Enter a valid email, or leave it blank.');
+      return;
+    }
+    if (!regForm.ageConfirmed) {
+      showToast('Confirm you are 18 or older.');
       return;
     }
     setIsSubmittingAuth(true);
@@ -474,7 +496,7 @@ export default function MobileApp() {
           fullName: regForm.fullName,
           phoneNumber: regForm.phone,
           state: regForm.state,
-          email: regForm.email,
+          email: regForm.email.trim() || undefined,
           payoutUpi: regForm.payoutUpi,
           ageConfirmed: regForm.ageConfirmed,
           otp: '1234'
@@ -492,7 +514,12 @@ export default function MobileApp() {
         if (user?.upiId) setWithdrawUpi(user.upiId);
         if (user?.email) setUserEmail(user.email);
         if (user?.state) setUserState(user.state);
+        setHasPaidDeposit(false);
+        setFundWizardOpen(false);
+        setOfferDismissed(false);
         setIsLoggedIn(true);
+        setActiveTab('lobby');
+        setWalletReady(true);
         showToast(`Welcome, ${user.fullName}. Your wallet starts at ₹0.`);
       } else {
         showToast(data.error || 'Registration failed.');
@@ -507,6 +534,11 @@ export default function MobileApp() {
   const handleLogout = () => {
     localStorage.removeItem('apex_token');
     setIsLoggedIn(false);
+    setWalletReady(false);
+    setHasPaidDeposit(false);
+    setOfferDismissed(false);
+    setActiveTab('lobby');
+    setAuthMode('login');
     setLoginStep('phone');
     showToast('Logged out successfully.');
   };
@@ -529,6 +561,7 @@ export default function MobileApp() {
       .then(r => r.json())
       .then(d => {
         if (!Array.isArray(d?.data)) return;
+        setHasPaidDeposit(d.data.some((tx: { type?: string; status?: string; gatewayName?: string }) => tx.type === 'DEPOSIT' && tx.status === 'SUCCESS' && tx.gatewayName !== 'FIRST_DEPOSIT_BONUS'));
         setActivityHistory(d.data.map((tx: any) => ({
           id: tx.id,
           type: tx.type === 'WITHDRAWAL' ? 'WITHDRAW' : tx.type === 'DEPOSIT' ? 'DEPOSIT' : 'BET',
@@ -543,6 +576,25 @@ export default function MobileApp() {
       .catch(() => {});
   }, [isLoggedIn, API_BASE]);
 
+  useEffect(() => {
+    if (!isLoggedIn || activeTab === 'arena') return;
+    const token = localStorage.getItem('apex_token');
+    if (!token) return;
+    const refreshWallet = () => {
+      fetch(`${API_BASE}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(res => {
+          const wallet = res?.data?.wallet;
+          if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+          if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
+          setWalletReady(true);
+        })
+        .catch(() => {});
+    };
+    const timer = setInterval(refreshWallet, 20000);
+    return () => clearInterval(timer);
+  }, [isLoggedIn, activeTab, API_BASE]);
+
   // Activity filter tab
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'BET' | 'DEPOSIT' | 'WITHDRAW'>('ALL');
 
@@ -550,6 +602,7 @@ export default function MobileApp() {
   // TRUE REAL-TIME SOCKET.IO ENGINE SYNCHRONIZATION
   // ════════════════════════════════════════════════════════════════════════
   useEffect(() => {
+    if (!isLoggedIn || activeTab !== 'arena') return;
     const socket = io(API_BASE, {
       transports: ['websocket', 'polling'],
       auth: { token: localStorage.getItem('apex_token') || '' }
@@ -706,7 +759,7 @@ export default function MobileApp() {
       socket.emit('leave:room', selectedRoom.id);
       socket.disconnect();
     };
-  }, [selectedRoom.id, API_BASE, isLoggedIn]);
+  }, [selectedRoom.id, API_BASE, isLoggedIn, activeTab]);
 
   useEffect(() => {
     let stop = false;
@@ -749,9 +802,31 @@ export default function MobileApp() {
   const arenaCards = selectedRoom.cards && selectedRoom.cards.length === 14 ? selectedRoom.cards : PICTURE_CARDS;
   const arenaMultiplier = selectedRoom.multiplier || 10;
   const roomList = eventsReady ? eventRooms : ROOMS;
+  const needsDepositFirst = walletReady && balance <= 0 && !hasPaidDeposit;
+
+  const openArena = (room?: RoomTier) => {
+    if (needsDepositFirst) {
+      setFundWizardOpen(true);
+      return;
+    }
+    if (room) {
+      setSelectedRoom(room);
+      if (room.fixedStake) setSelectedChip(room.minEntry);
+    }
+    setActiveTab('arena');
+  };
+
+  const openDeposit = () => {
+    setFundWizardOpen(false);
+    setDepositModalOpen(true);
+  };
 
   const handlePlaceBet = (cardId: number, amount = selectedChip) => {
     const stake = selectedRoom.fixedStake ? selectedRoom.minEntry : amount;
+    if (balance < stake) {
+      setFundWizardOpen(true);
+      return;
+    }
     if (roundStatus !== 'BETTING') {
       showToast('Bets are locked for this round.');
       return;
@@ -759,10 +834,6 @@ export default function MobileApp() {
     const roundId = roundIdRef.current;
     if (!roundId) {
       showToast('Waiting for the live round.');
-      return;
-    }
-    if (balance < stake) {
-      showToast('Insufficient balance. Please deposit.');
       return;
     }
     const socket = socketRef.current;
@@ -1501,7 +1572,7 @@ export default function MobileApp() {
   // ════════════════════════════════════════════════════════════════════════
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#08090C] text-white flex flex-col justify-between p-6 max-w-md mx-auto">
+      <div className="min-h-screen overflow-y-auto bg-[#08090C] text-white flex flex-col justify-between p-6 max-w-md mx-auto">
         <div className="pt-8">
           {/* Logo badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111319] border border-white/[0.08] text-xs mb-8">
@@ -1561,7 +1632,7 @@ export default function MobileApp() {
                   disabled={phoneNumber.length !== 10 || isSubmittingAuth}
                   className="w-full py-4 rounded-xl bg-[#00F59B] text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {isSubmittingAuth ? (
+                  {sendingOtp ? (
                     <>
                       <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                       <span>Sending OTP Code...</span>
@@ -1572,12 +1643,14 @@ export default function MobileApp() {
                 </button>
 
                 <button
-                  onClick={handleQuickDemoLoginClick}
+                  type="button"
+                  onClick={handleShowcaseLoginClick}
                   disabled={isSubmittingAuth}
-                  className="w-full py-3.5 rounded-xl bg-[#111319] border border-white/[0.08] text-[#94A3B8] hover:text-white font-semibold text-xs pressable flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-xl bg-[#111319] border border-[#00F59B]/40 text-[#00F59B] font-black text-xs pressable flex items-center justify-center gap-2"
                 >
-                  Sign in with demo code 1234
+                  Demo login · ₹1,00,000
                 </button>
+                <p className="text-[11px] text-center text-[#94A3B8]">Show account. One tap. A new player still starts at ₹0.</p>
               </div>
             ) : (
               <div className="space-y-4 animate-slide-up">
@@ -1614,7 +1687,7 @@ export default function MobileApp() {
                       <span>Verifying Code...</span>
                     </>
                   ) : (
-                    <span>Verify & Enter Arena</span>
+                    <span>Verify & Continue</span>
                   )}
                 </button>
               </div>
@@ -1665,7 +1738,7 @@ export default function MobileApp() {
 
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold block mb-1">
-                  Email Address *
+                  Email Address
                 </label>
                 <input
                   type="email"
@@ -1678,7 +1751,7 @@ export default function MobileApp() {
 
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-[#94A3B8] font-semibold block mb-1">
-                  Primary Payout UPI ID (for Fast Withdrawals) *
+                  Payout UPI ID
                 </label>
                 <input
                   type="text"
@@ -1898,11 +1971,7 @@ export default function MobileApp() {
               {roomList.map(room => (
                 <div
                   key={room.id}
-                  onClick={() => {
-                    setSelectedRoom(room);
-                    if (room.fixedStake) setSelectedChip(room.minEntry);
-                    setActiveTab('arena');
-                  }}
+                  onClick={() => openArena(room)}
                   className={`p-4 rounded-xl bg-[#111319] border transition-all cursor-pointer pressable flex items-center justify-between ${
                     selectedRoom.id === room.id
                       ? 'border-[#00F59B] shadow-md shadow-[#00F59B]/10'
@@ -2357,6 +2426,7 @@ export default function MobileApp() {
             <button
               onClick={handleLogout}
               className="w-9 h-9 rounded-xl bg-[#181B24] border border-white/[0.08] text-[#94A3B8] hover:text-white flex items-center justify-center pressable"
+              aria-label="Log out"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -2587,7 +2657,7 @@ export default function MobileApp() {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as NavTab)}
+              onClick={() => item.id === 'arena' ? openArena() : setActiveTab(item.id as NavTab)}
               className={`flex flex-col items-center gap-1 py-1 pressable ${
                 isActive ? 'text-[#00F59B]' : 'text-[#94A3B8] hover:text-white'
               }`}
@@ -2602,6 +2672,51 @@ export default function MobileApp() {
       {/* ════════════════════════════════════════════════════════════════════
           MODAL: DEPOSIT (1-Click Auto + Manual QR)
          ════════════════════════════════════════════════════════════════════ */}
+      {needsDepositFirst && activeTab === 'lobby' && !fundWizardOpen && !depositModalOpen && !offerDismissed && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80"
+          onClick={() => setOfferDismissed(true)}
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setOfferDismissed(true)}
+            className="absolute top-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-[#181B24] border border-white/15 text-white flex items-center justify-center pressable"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div
+            className="absolute bottom-4 left-4 right-4 mx-auto w-full max-w-sm bg-[#111319] border border-[#00F59B]/30 rounded-3xl p-5 space-y-3"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-[10px] font-black uppercase tracking-wider text-[#00F59B]">First deposit</p>
+            <h3 className="text-xl font-black text-white">50% extra on your first deposit</h3>
+            <p className="text-xs text-[#94A3B8]">Deposit first. After the desk matches your 12-digit UTR, the wallet receives that amount plus 50%. The arena opens once the money is in.</p>
+            <button type="button" onClick={openDeposit} className="w-full py-3 rounded-xl bg-[#00F59B] text-black font-black text-sm">Deposit</button>
+          </div>
+        </div>
+      )}
+
+      {fundWizardOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end justify-center p-4">
+          <div className="w-full max-w-sm bg-[#111319] border border-white/10 rounded-3xl p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-black text-white">This picture needs money in the wallet</h3>
+              <button
+                type="button"
+                onClick={() => setFundWizardOpen(false)}
+                aria-label="Close"
+                className="w-8 h-8 shrink-0 rounded-xl bg-[#181B24] border border-white/[0.08] text-[#94A3B8] hover:text-white flex items-center justify-center pressable"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[#94A3B8]">The stake is higher than the balance. Deposit, then come back to the arena.</p>
+            <button type="button" onClick={openDeposit} className="w-full py-3 rounded-xl bg-[#00F59B] text-black font-black text-sm">Deposit</button>
+          </div>
+        </div>
+      )}
+
       {depositModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-[#111319] border border-white/[0.08] rounded-t-3xl sm:rounded-3xl p-5 space-y-4 animate-slide-up">

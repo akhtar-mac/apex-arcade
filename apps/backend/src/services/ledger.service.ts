@@ -222,6 +222,42 @@ export class Ledger {
     return DB.memory.wallets.get(userId) || { id: null, userId, balance: 0, locked: 0 };
   }
 
+  /** Dev-only show account. Never touches any other wallet. */
+  static async ensureShowcaseFunds(userId: string, target = 100000) {
+    const prisma = getPrisma();
+    const updated = await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ id: string; balance: any; locked: any }>>`
+        SELECT id, balance, locked FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
+      `;
+      if (rows.length === 0) return null;
+      const balance = num(rows[0].balance);
+      const locked = num(rows[0].locked);
+      if (locked > 0 || balance >= target) return { id: rows[0].id, balance, locked };
+      await tx.wallet.update({
+        where: { id: rows[0].id },
+        data: { balance: target, unwagered: 0 }
+      });
+      return { id: rows[0].id, balance: target, locked };
+    });
+    if (!updated) return null;
+    const prev = DB.memory.wallets.get(userId);
+    DB.memory.wallets.set(userId, {
+      id: updated.id || prev?.id,
+      userId,
+      balance: updated.balance,
+      locked: updated.locked,
+      unwagered: updated.balance >= target ? 0 : prev?.unwagered || 0,
+      updatedAt: new Date()
+    });
+    const cached = DB.memory.users.get(userId) as any;
+    if (cached?.wallet) {
+      cached.wallet.balance = updated.balance;
+      cached.wallet.locked = updated.locked;
+      cached.wallet.unwagered = updated.balance >= target ? 0 : cached.wallet.unwagered;
+    }
+    return this.walletOf(userId);
+  }
+
   static async createUser(input: {
     phoneNumber: string;
     passwordHash: string;

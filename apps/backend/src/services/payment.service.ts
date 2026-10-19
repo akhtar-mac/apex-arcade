@@ -563,13 +563,37 @@ export class PaymentService {
       `;
       if (!wallets[0]) throw new Error('Wallet not found');
       const amount = Number(row.amount);
-      const newBalance = Math.round((Number(wallets[0].balance) + amount) * 100) / 100;
+      const earlierDeposits = await db.transaction.count({
+        where: {
+          userId: row.userId,
+          type: 'DEPOSIT',
+          status: 'SUCCESS',
+          NOT: { gatewayName: 'FIRST_DEPOSIT_BONUS' }
+        }
+      });
+      const bonus = earlierDeposits === 0 ? Math.round(amount * 50) / 100 : 0;
+      const credit = Math.round((amount + bonus) * 100) / 100;
+      const newBalance = Math.round((Number(wallets[0].balance) + credit) * 100) / 100;
       await db.wallet.update({ where: { id: wallets[0].id }, data: { balance: newBalance } });
       await db.transaction.update({
         where: { id: txId },
         data: { status: 'SUCCESS', approvedBy: adminId, approvedAt: new Date() }
       });
-      return { userId: row.userId, amount, newBalance, upiAccountId: row.upiAccountId };
+      if (bonus > 0) {
+        await db.transaction.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId: row.userId,
+            type: 'DEPOSIT',
+            status: 'SUCCESS',
+            amount: bonus,
+            gatewayName: 'FIRST_DEPOSIT_BONUS',
+            approvedBy: adminId,
+            approvedAt: new Date()
+          }
+        });
+      }
+      return { userId: row.userId, amount, bonus, newBalance, upiAccountId: row.upiAccountId };
     });
 
     const cached = DB.memory.transactions.get(txId) || { id: txId, type: TxType.DEPOSIT };
@@ -585,7 +609,7 @@ export class PaymentService {
     DB.memory.wallets.set(approved.userId, wallet);
 
     await this.recordCollection(approved.amount, approved.upiAccountId);
-    await TurnoverService.addDepositTurnover(approved.userId, approved.amount);
+    await TurnoverService.addDepositTurnover(approved.userId, approved.amount + (approved.bonus || 0));
     this.verifyUserAfterDeposit(approved.userId);
 
     const io = GameEngineService.getIo();
@@ -593,7 +617,7 @@ export class PaymentService {
       io.to(`user:${approved.userId}`).emit('wallet:update', {
         userId: approved.userId,
         balance: approved.newBalance,
-        delta: approved.amount,
+        delta: approved.amount + (approved.bonus || 0),
         isVerifiedDepositor: true,
         reason: `P2P approved deposit ₹${approved.amount}`
       });

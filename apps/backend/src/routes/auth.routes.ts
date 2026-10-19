@@ -86,6 +86,12 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     if (!fullName || fullName.trim().length < 2) {
       return res.status(400).json({ success: false, error: 'Full legal name is required.' });
     }
+    if (ageConfirmed !== true) {
+      return res.status(400).json({ success: false, error: 'Confirm you are 18 or older before creating an account.' });
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
+      return res.status(400).json({ success: false, error: 'Enter a valid email address, or leave it blank.' });
+    }
     if (!AuthService.verifyOtp(cleanPhone, (otp || '').toString().trim())) {
       return res.status(400).json({ success: false, error: 'Invalid or expired OTP code.' });
     }
@@ -110,6 +116,44 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       success: true,
       message: `Welcome, ${fullName}. Your wallet starts at ₹0. Add money by paying the published QR.`,
       data: { user: publicUser(created.user), wallet: created.wallet, ...tokens }
+    });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+const SHOWCASE_PHONE = '9000000100';
+
+authRouter.post('/demo-login', authRateLimiter, async (_req: Request, res: Response) => {
+  try {
+    const { Config } = await import('../config.js');
+    if (!Config.allowDemoOtp) {
+      return res.status(404).json({ success: false, error: 'Demo login is not available.' });
+    }
+
+    let user = await Ledger.findUserByPhone(SHOWCASE_PHONE);
+    if (!user) {
+      const passwordHash = await bcrypt.hash(cryptoRandom(), 10);
+      const created = await Ledger.createUser({
+        phoneNumber: SHOWCASE_PHONE,
+        passwordHash,
+        role: 'USER',
+        fullName: 'Demo Player',
+        state: 'Maharashtra',
+        ageConfirmed: true
+      });
+      user = created.user;
+    }
+    if (!user) {
+      return res.status(500).json({ success: false, error: 'Demo account could not be opened.' });
+    }
+    await ComplianceService.assertCanUseAccount(user.id);
+    const wallet = await Ledger.ensureShowcaseFunds(user.id, 100000);
+    const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+    return res.json({
+      success: true,
+      message: 'Demo account ready.',
+      data: { user: publicUser(user), wallet, ...tokens }
     });
   } catch (err: any) {
     return res.status(400).json({ success: false, error: err.message });
