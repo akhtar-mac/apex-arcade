@@ -22,7 +22,7 @@ services:
     plan: free
     region: oregon
     buildCommand: npm install --include=dev && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
-    startCommand: npx --workspace=apps/backend prisma migrate deploy && node apps/backend/dist/server.js
+    startCommand: (npx --workspace=apps/backend prisma migrate resolve --rolled-back 20261012123000_phase1_ledger || true) && npx --workspace=apps/backend prisma migrate deploy && node apps/backend/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
@@ -34,7 +34,7 @@ services:
       - key: SMS_PROVIDER
         value: DEMO
       - key: CORS_ORIGINS
-        value: https://*.onrender.com,https://apex-web-landing.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin.onrender.com,https://apex-p2p-panel.onrender.com
+        value: https://*.onrender.com,https://apex-web-landing-o6u0.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin-49qp.onrender.com,https://apex-p2p-panel.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: apex-arcade-db
