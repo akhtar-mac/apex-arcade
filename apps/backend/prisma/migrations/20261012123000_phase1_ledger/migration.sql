@@ -1,10 +1,11 @@
 -- Phase 1 ledger. Safe on both a fresh database and a database created earlier with prisma db push.
 
 DO $$ BEGIN
-  CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+  CREATE TYPE "Role" AS ENUM ('USER', 'AGENT', 'ADMIN');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'AGENT';
 
 DO $$ BEGIN
   CREATE TYPE "TxType" AS ENUM ('DEPOSIT', 'WITHDRAWAL', 'BET_PLACED', 'BET_WON', 'REFUND');

@@ -22,7 +22,7 @@ services:
     plan: free
     region: oregon
     buildCommand: npm install --include=dev && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
-    startCommand: (npx --workspace=apps/backend prisma migrate resolve --rolled-back 20261012123000_phase1_ledger || true) && npx --workspace=apps/backend prisma migrate deploy && node apps/backend/dist/server.js
+    startCommand: npx --workspace=apps/backend prisma db push && node apps/backend/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
