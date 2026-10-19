@@ -127,7 +127,7 @@ export const DB = {
       status: 'COMPLETED',
       multiplier: 10
     });
-    console.log(`[DATABASE] Round #${roundData.roundNumber} saved. Pool ₹${roundData.totalPool}, profit ₹${roundData.houseProfit}.`);
+    console.log(`[DATABASE] Round #${roundData.roundNumber} saved. Pool ₹${roundData.totalPool}.`);
   }
 };
 

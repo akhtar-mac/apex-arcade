@@ -60,7 +60,6 @@ export default function EventsPage({ apiBase, showToast }: { apiBase: string; sh
   const [saving, setSaving] = useState(false);
 
   const selected = events.find((event) => event.id === selectedId) || null;
-  const houseReturn = Math.round((multiplier / 14) * 100);
 
   const load = async () => {
     const res = await fetch(`${apiBase}/api/v1/admin/events`);
@@ -149,8 +148,7 @@ export default function EventsPage({ apiBase, showToast }: { apiBase: string; sh
       <div className="p-5 rounded-2xl bg-[#111319] border border-white/[0.08]">
         <h3 className="text-white font-black text-lg">Events</h3>
         <p className="text-xs text-[#94A3B8] mt-1">
-          Every game is listed here, including the ones already running. Create another, edit its pictures, stake, and payout from 1× to 20×, then make it live. Offline games leave the player lobby after the current round.
-          A {multiplier}× payout on 14 pictures returns about {houseReturn}% of stakes over time. The winning card is still sealed when the round starts.
+          Every game is listed here, including the ones already running. Create another, edit its pictures, stake, and payout from 1× to 20×, then make it live. Offline games leave the player lobby after the current round. The winning card is sealed when the round starts.
         </p>
       </div>
 

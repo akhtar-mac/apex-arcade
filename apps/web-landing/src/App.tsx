@@ -50,12 +50,14 @@ export default function LandingApp() {
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | 'responsible' | null>(null);
   const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: "India's #1 Picture Betting", logoUrl: '' });
 
+  const apiBase = (import.meta as any).env?.VITE_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:4000` : 'http://localhost:4000');
+  const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5174` : 'http://localhost:5174');
+
   useEffect(() => {
-    const host = window.location.hostname;
-    fetch(`http://${host}:4000/api/v1/brand`).then(r => r.json()).then(json => {
+    fetch(`${apiBase}/api/v1/brand`).then(r => r.json()).then(json => {
       if (json?.data?.appName) setBrand(json.data);
     }).catch(() => undefined);
-  }, []);
+  }, [apiBase]);
 
   const faqs = [
     {
@@ -68,7 +70,7 @@ export default function LandingApp() {
     },
     {
       q: "Is the picture outcome genuinely random and fair?",
-      a: "The winning card is sealed when the round starts, before bets, from the round seed. A 10x payout on 14 pictures keeps about 29% for the house on average. The desk does not pick the card after seeing the bets."
+      a: "The winning card is sealed when the round starts, before bets, from the round seed. The desk does not pick the card after seeing the bets."
     },
     {
       q: "Is there an Android app?",
@@ -91,7 +93,7 @@ export default function LandingApp() {
     const pages = {
       terms: {
         title: 'Terms',
-        body: 'You must be 18 or older. You pay a QR and UPI ID published by the desk, then submit the 12-digit UTR. The wallet is credited only after a person approves that UTR. A withdrawal holds the balance until an agent pays your UPI and enters the UTR of that payment. A 10x payout on 14 pictures keeps about 29% for the house on average. The winning card is sealed when the round starts.'
+        body: 'You must be 18 or older. You pay a QR and UPI ID published by the desk, then submit the 12-digit UTR. The wallet is credited only after a person approves that UTR. A withdrawal holds the balance until an agent pays your UPI and enters the UTR of that payment. The winning card is sealed when the round starts.'
       },
       privacy: {
         title: 'Privacy',
@@ -240,7 +242,7 @@ export default function LandingApp() {
               { label: 'Fixed Multiplier', value: '10.0×', sub: '₹100 bet = ₹1,000', color: '#0df59d' },
               { label: 'Round Speed', value: '120s', sub: 'Fast rounds all day', color: '#00e5ff' },
               { label: 'Cash out', value: 'Manual', sub: 'Desk types the UTR', color: '#ffb800' },
-              { label: 'House edge', value: 'About 29%', sub: '10x payout on 14 cards', color: '#c084fc' },
+              { label: 'Card Draw', value: 'Sealed', sub: '14 picture cards', color: '#c084fc' },
             ].map(stat => (
               <div key={stat.label} className="glass-card p-4 rounded-2xl text-left hover:bg-white/[0.05] transition">
                 <span className="text-[11px] text-slate-500 font-semibold block mb-1">{stat.label}</span>
@@ -625,7 +627,7 @@ export default function LandingApp() {
               </a>
 
               <a
-                href={typeof window !== 'undefined' ? `http://${window.location.hostname}:5174` : 'http://localhost:5174'}
+                href={playerUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 transition border border-emerald-500/20"

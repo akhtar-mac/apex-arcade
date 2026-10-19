@@ -5,7 +5,6 @@ import { PaymentService } from '../services/payment.service.js';
 import { GameEngineService } from '../services/game-engine.service.js';
 import { DB, getPrisma } from '../db.js';
 import { TxType, TxStatus } from '@arcade/shared-types';
-import { calculateHouseEdge } from '@arcade/shared-utils';
 import { AdminRiskService } from '../services/admin-risk.service.js';
 import { requireRole } from '../middlewares/require-role.middleware.js';
 import { ComplianceService } from '../services/compliance.service.js';
@@ -36,8 +35,6 @@ adminRouter.get('/profit-engine', (req: Request, res: Response) => {
       roundNumber: round.roundNumber,
       resultCard: round.resultCard,
       totalPool: Number(round.totalPool || 0),
-      houseProfit: Number(round.houseProfit || 0),
-      profitMargin: Number(round.profitMargin || 0),
       endTime: round.endTime
     }));
   return res.json({
@@ -52,7 +49,7 @@ adminRouter.get('/profit-engine', (req: Request, res: Response) => {
 adminRouter.post('/profit-engine', (_req: Request, res: Response) => {
   return res.status(410).json({
     success: false,
-    error: 'The profit lock is off. The card is sealed before bets. This screen cannot change it.'
+    error: 'The card is sealed before bets. This screen cannot change it.'
   });
 });
 
@@ -91,7 +88,6 @@ adminRouter.get('/stats', (req: Request, res: Response) => {
     .reduce((acc, t) => acc + t.amount, 0);
   const totalBetVolume = bets.reduce((acc, b) => acc + b.amount, 0);
   const totalPayouts = bets.filter(b => b.isWin).reduce((acc, b) => acc + (b.payout || 0), 0);
-  const houseMargin = calculateHouseEdge(totalBetVolume, totalPayouts);
 
   const pendingP2PCount = txs.filter(t => t.type === TxType.DEPOSIT && t.status === TxStatus.PENDING).length;
   const pendingWithdrawalCount = txs.filter(t => t.type === TxType.WITHDRAWAL && t.status === TxStatus.PENDING).length;
@@ -109,7 +105,6 @@ adminRouter.get('/stats', (req: Request, res: Response) => {
       totalWithdrawals,
       totalBetVolume,
       totalPayouts,
-      houseMarginPercent: houseMargin,
       pendingP2PDeposits: pendingP2PCount,
       flaggedWithdrawals: pendingWithdrawalCount,
       systemHealth: 'ONLINE'

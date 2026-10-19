@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import cors from 'cors';
-import { Config } from './config.js';
+import { Config, isAllowedOrigin } from './config.js';
 import { getPrisma } from './db.js';
 import { RedisService } from './services/redis.service.js';
 import { authRouter } from './routes/auth.routes.js';
@@ -18,7 +18,7 @@ const server = http.createServer(app);
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || Config.corsOrigins.includes(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     return callback(null, false);
   }
 }));
@@ -181,7 +181,7 @@ app.get('/', (req: Request, res: Response) => {
       ONE API PROCESS ONLINE
     </div>
     <h1>Apex <span>Engine Gateway</span></h1>
-    <p class="desc">One API process for 14-picture rooms and manual UPI. A wallet changes only after a person matches a 12-digit UTR. A 10× payout on 14 cards keeps about 29% for the house.</p>
+    <p class="desc">One API process for 14-picture rooms and manual UPI. A wallet changes only after a person matches a 12-digit UTR. The winning card is sealed when the round starts.</p>
 
     <div class="grid">
       <a href="http://${host}:5174" class="portal-link">

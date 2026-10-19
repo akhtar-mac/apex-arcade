@@ -87,4 +87,16 @@ function assertProductionLaunch(): void {
   process.exit(1);
 }
 
+export function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  if (Config.corsOrigins.includes(origin)) return true;
+  for (const pattern of Config.corsOrigins) {
+    if (pattern.startsWith('https://*.')) {
+      const suffix = pattern.slice('https://*'.length);
+      if (origin.startsWith('https://') && origin.endsWith(suffix)) return true;
+    }
+  }
+  return false;
+}
+
 assertProductionLaunch();

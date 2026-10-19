@@ -697,13 +697,13 @@ export default function AdminApp() {
 
                 <div className="p-5 rounded-2xl bg-[#111319] border border-white/[0.08]">
                   <span className="text-[10px] uppercase tracking-wider text-[#94A3B8] font-bold block mb-1">
-                    House result
+                    Total payouts
                   </span>
                   <div className="text-2xl font-black font-mono-numbers text-[#00F59B]">
-                    ₹{(deskStats.totalBetVolume - deskStats.totalPayouts).toLocaleString('en-IN')}
+                    ₹{deskStats.totalPayouts.toLocaleString('en-IN')}
                   </div>
                   <span className="text-[10px] text-[#94A3B8] font-mono-numbers mt-1 block">
-                    {deskStats.houseMarginPercent}% of settled bets
+                    Settled winnings
                   </span>
                 </div>
 
@@ -744,15 +744,15 @@ export default function AdminApp() {
                 )}
               </div>
 
-              {/* Real-Time House Edge Gauge Card */}
+              {/* Round Integrity Card */}
               <div className="p-6 rounded-2xl bg-[#111319] border border-white/[0.08] space-y-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-base font-black text-white">House edge</h3>
-                    <p className="text-xs text-[#94A3B8]">A 10× payout on 14 cards is about 29% for the house when every card is equally likely. The desk does not pick the card.</p>
+                    <h3 className="text-base font-black text-white">Round integrity</h3>
+                    <p className="text-xs text-[#94A3B8]">The winning card is sealed when the round starts. The desk does not pick the card.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-[#00F59B]/10 text-[#00F59B] border border-[#00F59B]/20 text-xs font-bold font-mono-numbers">
-                    ABOUT 29%
+                    SEALED DRAW
                   </span>
                 </div>
               </div>
@@ -768,14 +768,13 @@ export default function AdminApp() {
                         <th className="py-2.5">Winning Card</th>
                         <th className="py-2.5">Total Pool</th>
                         <th className="py-2.5">Payout (10x)</th>
-                        <th className="py-2.5">Net Profit</th>
-                        <th className="py-2.5">Algorithm Action</th>
+                        <th className="py-2.5">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04] font-mono-numbers">
                       {roundReports.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-6 text-[#94A3B8]">No settled rounds yet.</td>
+                          <td colSpan={5} className="py-6 text-[#94A3B8]">No settled rounds yet.</td>
                         </tr>
                       ) : roundReports.map(row => (
                         <tr key={row.roundNumber}>
@@ -783,7 +782,6 @@ export default function AdminApp() {
                           <td className="py-3 text-[#00F59B]">#{row.winningCard} {row.winningCardName} {row.winningCardSymbol}</td>
                           <td className="py-3 text-white">₹{Number(row.totalPool || 0).toLocaleString('en-IN')}</td>
                           <td className="py-3 text-white">₹{Number(row.totalPayout || 0).toLocaleString('en-IN')}</td>
-                          <td className="py-3 text-[#00F59B] font-bold">₹{Number(row.adminProfit || 0).toLocaleString('en-IN')} ({row.marginPercent}%)</td>
                           <td className="py-3 text-[#94A3B8]">Sealed at start</td>
                         </tr>
                       ))}
@@ -944,13 +942,13 @@ export default function AdminApp() {
 
                 <div className="p-5 rounded-2xl bg-[#111319] border border-white/[0.08]">
                   <span className="text-[10px] uppercase tracking-wider text-[#94A3B8] font-bold block mb-1">
-                    Target House Retention
+                    Payout Multiplier
                   </span>
                   <div className="text-2xl font-black font-mono-numbers text-[#00F59B]">
-                    About 29%
+                    10×
                   </div>
                   <span className="text-[10px] text-[#94A3B8] font-mono-numbers mt-1 block">
-                    10× on 14 cards
+                    14 picture cards
                   </span>
                 </div>
 
@@ -988,7 +986,6 @@ export default function AdminApp() {
                         <th className="py-2.5">Card</th>
                         <th className="py-2.5">Stakes Placed</th>
                         <th className="py-2.5">10x Payout</th>
-                        <th className="py-2.5">Net House Margin</th>
                         <th className="py-2.5">Risk Level</th>
                         <th className="py-2.5 text-right">Intervention</th>
                       </tr>
@@ -997,8 +994,6 @@ export default function AdminApp() {
                       {PICTURE_CARDS.map(card => {
                         const stakes = cardPools[card.id] || 0;
                         const payout = stakes * 10.0;
-                        const totalPool = Object.values(cardPools).reduce((a, b) => a + b, 0);
-                        const netMargin = totalPool - payout;
                         const poolValues = Object.values(cardPools);
                         const isHighestRisk = poolValues.length > 0 && stakes === Math.max(...poolValues) && stakes > 0;
 
@@ -1013,9 +1008,6 @@ export default function AdminApp() {
                             </td>
                             <td className="py-3 text-white">₹{stakes.toLocaleString()}</td>
                             <td className="py-3 text-white">₹{payout.toLocaleString()}</td>
-                            <td className={`py-3 font-bold ${netMargin >= 0 ? 'text-[#00F59B]' : 'text-red-400'}`}>
-                              {netMargin >= 0 ? `+₹${netMargin.toLocaleString()}` : `-₹${Math.abs(netMargin).toLocaleString()}`}
-                            </td>
                             <td className="py-3 font-sans">
                               {isHighestRisk ? (
                                 <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold">
@@ -1047,7 +1039,6 @@ export default function AdminApp() {
               <h3 className="text-lg font-black text-white">Round report</h3>
               <p className="text-sm text-[#94A3B8] leading-relaxed">
                 The winning card is sealed when the round starts. This screen cannot choose it.
-                A 10× payout on 14 cards leaves about 29% for the house when every card is equally likely.
               </p>
               {roundReports.length === 0 ? (
                 <p className="text-xs text-[#94A3B8]">No settled rounds yet.</p>
@@ -1056,7 +1047,7 @@ export default function AdminApp() {
                   {roundReports.map(row => (
                     <li key={row.roundNumber} className="flex justify-between border-b border-white/[0.06] py-2">
                       <span>#{row.roundNumber} {row.winningCardName}</span>
-                      <span>Pool ₹{Number(row.totalPool || 0).toLocaleString('en-IN')} · house ₹{Number(row.adminProfit || 0).toLocaleString('en-IN')}</span>
+                      <span>Pool ₹{Number(row.totalPool || 0).toLocaleString('en-IN')} · paid ₹{Number(row.totalPayout || 0).toLocaleString('en-IN')}</span>
                     </li>
                   ))}
                 </ul>
@@ -1087,7 +1078,6 @@ export default function AdminApp() {
                   {PICTURE_CARDS.map(card => {
                     const stake = cardPools[card.id] || 0;
                     const payout = stake * 10;
-                    const profit = totalStakeInRound - payout;
                     return (
                       <div
                         key={card.id}
@@ -1121,12 +1111,6 @@ export default function AdminApp() {
                           <div className="flex justify-between text-[#94A3B8]">
                             <span>10x Payout:</span>
                             <span className="text-white">₹{payout}</span>
-                          </div>
-                          <div className="flex justify-between font-bold">
-                            <span>Profit:</span>
-                            <span className={profit >= 0 ? 'text-[#00F59B]' : 'text-white'}>
-                              {profit >= 0 ? '+' : ''}₹{profit}
-                            </span>
                           </div>
                         </div>
                       </div>

@@ -1178,16 +1178,16 @@
           <div class="admin-metric-lbl">Total Round Pool</div>
         </div>
         <div class="admin-metric-box">
-          <div class="admin-metric-val" id="adm-projected-margin">24.8%</div>
-          <div class="admin-metric-lbl">Guaranteed House Margin</div>
+          <div class="admin-metric-val" id="adm-projected-margin">10.0×</div>
+          <div class="admin-metric-lbl">Fixed Card Multiplier</div>
         </div>
         <div class="admin-metric-box">
           <div class="admin-metric-val" id="adm-max-exposure">₹14,200</div>
           <div class="admin-metric-lbl">Max Liability Exposure</div>
         </div>
         <div class="admin-metric-box">
-          <div class="admin-metric-val" style="color: var(--accent-green);" id="adm-net-retention">₹7,068</div>
-          <div class="admin-metric-lbl">Retained Company Profit</div>
+          <div class="admin-metric-val" style="color: var(--accent-green);" id="adm-net-retention">14 Cards</div>
+          <div class="admin-metric-lbl">Sealed Round Draw</div>
         </div>
       </div>
     </div>
@@ -1673,7 +1673,7 @@
     }
 
     function resolveRoundOutcome() {
-      // Guaranteed house margin engine: selects a winning card
+      // Sealed round outcome
       // In demonstration, picks card #1 (Lion) or card #2 (Tiger)
       const winningCardId = Math.random() > 0.5 ? 1 : 2;
       const card = PICTURE_CARDS.find(c => c.id === winningCardId);

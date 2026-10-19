@@ -1,0 +1,120 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+databases:
+  - name: apex-arcade-db
+    databaseName: arcade_db
+    user: arcade_user
+    plan: free
+    region: oregon
+
+services:
+  - type: keyvalue
+    name: apex-arcade-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
+  - type: web
+    name: apex-arcade-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install --include=dev && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
+    startCommand: npx --workspace=apps/backend prisma migrate deploy && node apps/backend/dist/server.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
+      - key: NODE_ENV
+        value: staging
+      - key: ALLOW_DEMO_OTP
+        value: "true"
+      - key: SMS_PROVIDER
+        value: DEMO
+      - key: CORS_ORIGINS
+        value: https://*.onrender.com,https://apex-web-landing.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin.onrender.com,https://apex-p2p-panel.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: apex-arcade-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: apex-arcade-redis
+          type: keyvalue
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ADMIN_PHONE
+        value: "9999999999"
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AGENT_PHONE
+        value: "8888888888"
+      - key: AGENT_PASSWORD
+        sync: false
+
+  - type: web
+    name: apex-web-landing
+    runtime: static
+    buildCommand: npm install --include=dev && npm --workspace=apps/web-landing run build
+    staticPublishPath: apps/web-landing/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
+      - key: VITE_API_URL
+        value: https://apex-arcade-api.onrender.com
+      - key: VITE_PLAYER_URL
+        value: https://apex-mobile-app.onrender.com
+
+  - type: web
+    name: apex-mobile-app
+    runtime: static
+    buildCommand: npm install --include=dev && npm --workspace=apps/mobile-app run build
+    staticPublishPath: apps/mobile-app/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
+      - key: VITE_API_URL
+        value: https://apex-arcade-api.onrender.com
+
+  - type: web
+    name: apex-web-admin
+    runtime: static
+    buildCommand: npm install --include=dev && npm --workspace=apps/web-admin run build
+    staticPublishPath: apps/web-admin/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
+      - key: VITE_API_URL
+        value: https://apex-arcade-api.onrender.com
+
+  - type: web
+    name: apex-p2p-panel
+    runtime: static
+    buildCommand: npm install --include=dev && npm --workspace=apps/p2p-panel run build
+    staticPublishPath: apps/p2p-panel/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
+      - key: VITE_API_URL
+        value: https://apex-arcade-api.onrender.com

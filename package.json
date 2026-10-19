@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "Enterprise-grade real-time 12-picture arcade betting & P2P platform capable of 10,000 CCU",
   "workspaces": [
     "apps/*",
@@ -18,7 +21,7 @@
     "dev:p2p": "npm --workspace=apps/p2p-panel run dev",
     "test": "node --test tests/*.test.js",
     "test:10k": "node --test tests/load-test-10000-ccu.test.js",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npm --workspace=apps/backend run prisma:generate && npm --workspace=apps/backend run build && npm --workspace=apps/mobile-app run build && npm --workspace=apps/p2p-panel run build && npm --workspace=apps/web-admin run build && npm --workspace=apps/web-landing run build",
     "prod:deploy": "node scripts/deploy-prod.js",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

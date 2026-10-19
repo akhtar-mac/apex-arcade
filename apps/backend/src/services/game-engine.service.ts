@@ -41,14 +41,6 @@ export class GameEngineService {
   private static tickerTimer: NodeJS.Timeout | null = null;
   private static workerId: string = 'worker-' + crypto.randomUUID().substring(0, 8);
 
-  // House Edge Policy: Admin target 20% to 30% profit guarantee
-  public static houseProfitConfig = {
-    enabled: true,
-    minProfitMargin: 0.20, // At least 20% profit for the house
-    targetProfitMargin: 0.25, // Target 25% profit
-    maxProfitMargin: 0.35  // Up to 35% profit
-  };
-
   static setSocketIo(io: any) {
     this.ioInstance = io;
   }
@@ -370,7 +362,7 @@ export class GameEngineService {
       betsCount: betsList.length,
       bets: betsList,
       winners: winnersList,
-      engineReasoning: `Card sealed at round start. Pool ₹${totalCollected}, paid ₹${totalPaidOut}, house ₹${netProfit} (${profitMargin.toFixed(1)}%).`
+      engineReasoning: `Card sealed at round start. Pool ₹${totalCollected}, paid ₹${totalPaidOut}.`
     };
 
     GameEngineService.roundLogs.unshift(logEntry);
@@ -398,7 +390,7 @@ export class GameEngineService {
       payout: b.payout ?? 0
     })));
 
-    console.log(`[PROFIT SETTLED] Round #${state.roundNumber} Settled: Collected ₹${totalCollected}, Paid Out ₹${totalPaidOut}, Net Profit: ₹${netProfit} (${profitMargin.toFixed(1)}% Company Profit)`);
+    console.log(`[ROUND SETTLED] Round #${state.roundNumber} settled: pool ₹${totalCollected}, paid out ₹${totalPaidOut}.`);
   }
 
   /**
@@ -498,7 +490,11 @@ export class GameEngineService {
       secondsRemaining: s.secondsRemaining,
       activeBetsCount: s.bets.size,
       currentPool: Array.from(s.bets.values()).reduce((sum, b) => sum + b.amount, 0),
-      lastRoundStats: s.roundStats || null
+      lastRoundStats: s.roundStats ? {
+        totalPool: s.roundStats.totalPool,
+        totalPayout: s.roundStats.totalPayout,
+        optimizedCard: s.roundStats.optimizedCard
+      } : null
     }));
   }
 

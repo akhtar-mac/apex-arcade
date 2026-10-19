@@ -1,4 +1,4 @@
-import { Config } from './config.js';
+import { Config, isAllowedOrigin } from './config.js';
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -20,7 +20,10 @@ export function setupSocketServer(httpServer: HttpServer) {
   RedisService.getClient();
   const io = new Server(httpServer, {
     cors: {
-      origin: Config.corsOrigins,
+      origin(origin, callback) {
+        if (isAllowedOrigin(origin)) return callback(null, true);
+        return callback(null, false);
+      },
       methods: ['GET', 'POST']
     },
     transports: ['websocket', 'polling'],
