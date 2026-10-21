@@ -65,7 +65,7 @@ export class Ledger {
           wallet: { create: { balance: 0, locked: 0, unwagered: 0 } }
         }
       });
-      console.log(`[DATABASE] Admin ${phone} created with balance ₹0.`);
+      console.log(`[DATABASE] Admin ending ${phone.slice(-2)} created with balance ₹0.`);
       return;
     }
 
@@ -97,7 +97,7 @@ export class Ledger {
           wallet: { create: { balance: 0, locked: 0, unwagered: 0 } }
         }
       });
-      console.log(`[DATABASE] Agent ${phone} created with balance ₹0.`);
+      console.log(`[DATABASE] Agent ending ${phone.slice(-2)} created with balance ₹0.`);
       return;
     }
     if (existing.role === 'AGENT') {

@@ -242,7 +242,7 @@ Deploy **PgBouncer** in `docker-compose.yml` between the backend cluster and Pos
     restart: always
     environment:
       DB_USER: arcade_user
-      DB_PASSWORD: arcade_secure_password_2026
+      DB_PASSWORD: <local-compose-password>
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: arcade_db

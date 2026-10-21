@@ -94,6 +94,12 @@ A process on 127.0.0.1:4099 received three JSON posts: `authorisation_denied`, `
 
 Backup of `arcade_verify_final` restored 4 users and 7 migrations into `arcade_verify_final_restore`.
 
+## Closure pass, 21 Oct 2026
+
+`npm test`: 29 passed, 0 failed. `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run test:e2e` (20 passed) completed. Production audit: 0 findings. Full audit: 7 findings. Secret scan passed 251 tracked files. `render whoami` exited 1. `adb devices` listed nothing.
+
+A staging-simulated process (`DEPLOY_ENV=staging`, `ENABLE_REGULATED_FEATURES=false`) served Postgres-backed game reads. An authenticated `POST /api/v1/game/bet` returned 503. Five-second loopback workloads at concurrency 10 on an Apple M6: history 31,900 requests, 0 errors, p95 2.1 ms; events 25,590 requests, 0 errors, p95 2.2 ms; my-bets 13,850 requests, 0 errors, p95 4.2 ms. The temporary completed round used for the history sample was restored to `BETTING`.
+
 ## Not run
 
 GitHub-hosted CI of this working tree, a logged-in Render workspace validation, Android installation, live SMS, an agreed capacity workload, and an external security test.

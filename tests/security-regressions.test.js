@@ -4,6 +4,14 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+test('bootstrap logs keep only the last two phone digits', () => {
+  const ledger = read('apps/backend/src/services/ledger.service.ts');
+  assert.match(ledger, /Admin ending \$\{phone\.slice\(-2\)\}/);
+  assert.match(ledger, /Agent ending \$\{phone\.slice\(-2\)\}/);
+  assert.doesNotMatch(ledger, /Admin \$\{phone\} created/);
+  assert.doesNotMatch(ledger, /Agent \$\{phone\} created/);
+});
+
 test('public auth has no universal fixed OTP or hardcoded registration OTP', () => {
   const auth = read('apps/backend/src/services/auth.service.ts');
   const mobile = read('apps/mobile-app/src/App.tsx');
