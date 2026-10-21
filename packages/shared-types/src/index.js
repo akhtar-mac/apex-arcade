@@ -99,7 +99,7 @@ exports.SubmitUtrSchema = zod_1.z.object({
     transactionId: zod_1.z.string().min(1).optional(),
     utrNumber: zod_1.z.string().regex(/^\d{12}$/, 'UTR must be a 12-digit reference number'),
     amount: zod_1.z.number().positive().min(100),
-    screenshotBase64: zod_1.z.string().optional()
+    screenshotBase64: zod_1.z.string().max(2_800_000, 'Payment screenshot must be 2 MB or smaller').optional()
 });
 exports.WithdrawRequestSchema = zod_1.z.object({
     amount: zod_1.z.number().positive().min(500, 'Minimum withdrawal is ₹500'),

@@ -233,6 +233,9 @@ export interface RoundTickPayload {
     roundNumber: number;
     status: RoundStatus;
     secondsRemaining: number;
+    seedCommitment?: string;
+    clientSeed?: string;
+    nonce?: number;
 }
 export interface RoundLockedPayload {
     roomId: string;
@@ -247,6 +250,10 @@ export interface RoundResultPayload {
     winningCard: number;
     winningSymbol: PictureCard;
     multiplier: number;
+    serverSeed: string;
+    seedCommitment: string;
+    clientSeed: string;
+    nonce: number;
     revealedAt: string;
 }
 export interface WalletUpdatePayload {

@@ -4,7 +4,6 @@ import { RoundStatus, PICTURE_CARDS, TxType, TxStatus } from '@arcade/shared-typ
 import { calculateProvablyFairCard, generateRandomSeed, calculatePayout } from '@arcade/shared-utils';
 import { RedisService } from './redis.service.js';
 import { BetQueueService } from './bet-queue.service.js';
-import { TurnoverService } from './turnover.service.js';
 import * as crypto from 'crypto';
 
 interface ActiveRoomState {
@@ -22,6 +21,7 @@ interface ActiveRoomState {
   endTime: number;
   secondsRemaining: number;
   serverSeed: string;
+  seedCommitment: string;
   clientSeed: string;
   nonce: number;
   resultCard: number | null;
@@ -29,9 +29,6 @@ interface ActiveRoomState {
   roundStats?: {
     totalPool: number;
     totalPayout: number;
-    houseProfit: number;
-    profitMarginPercent: number;
-    optimizedCard: number;
   };
 }
 
@@ -53,7 +50,6 @@ export class GameEngineService {
 
   static initialize() {
     console.log('[GAME ENGINE] 🎰 Initializing 14-picture engine. The winning card is sealed when the round starts.');
-    BetQueueService.initialize();
     for (const room of DB.memory.gameRooms.values()) {
       if (room.isActive) {
         this.startNewRoundForRoom(room.id, 1);
@@ -88,7 +84,8 @@ export class GameEngineService {
     const now = Date.now();
     const endTime = now + interval * 1000;
     const serverSeed = generateRandomSeed();
-    const clientSeed = 'apex_picture_client_seed_2026';
+    const clientSeed = roundId;
+    const seedCommitment = crypto.createHash('sha256').update(serverSeed).digest('hex');
     const multiplier = Number(room.multiplier) || 10;
     const cards = Array.isArray(room.cards) && room.cards.length === 14 ? room.cards : PICTURE_CARDS;
 
@@ -107,6 +104,7 @@ export class GameEngineService {
       endTime,
       secondsRemaining: interval,
       serverSeed,
+      seedCommitment,
       clientSeed,
       nonce: roundNumber,
       resultCard: null,
@@ -149,7 +147,10 @@ export class GameEngineService {
         roundId,
         roundNumber,
         status: RoundStatus.BETTING,
-        secondsRemaining: interval
+        secondsRemaining: interval,
+        seedCommitment,
+        clientSeed,
+        nonce: roundNumber
       });
     }
   }
@@ -182,13 +183,9 @@ export class GameEngineService {
         const totalPool = roundBets.reduce((sum, b) => sum + b.amount, 0);
         const stakedOnWinner = roundBets.filter(b => b.chosenCard === card).reduce((sum, b) => sum + b.amount, 0);
         const totalPayout = stakedOnWinner * state.multiplier;
-        const houseProfit = totalPool - totalPayout;
         state.roundStats = {
           totalPool,
-          totalPayout,
-          houseProfit,
-          profitMarginPercent: totalPool > 0 ? Math.round((houseProfit / totalPool) * 10000) / 100 : 0,
-          optimizedCard: card
+          totalPayout
         };
         console.log(`[GAME ENGINE] 🔒 Room [${state.tierName}] Round #${state.roundNumber} locked. Sealed card stays hidden until reveal.`);
 
@@ -221,6 +218,10 @@ export class GameEngineService {
             winningCard,
             winningSymbol: symbolObj,
             multiplier: state.multiplier,
+            serverSeed: state.serverSeed,
+            seedCommitment: state.seedCommitment,
+            clientSeed: state.clientSeed,
+            nonce: state.nonce,
             revealedAt: new Date().toISOString()
           });
         }
@@ -357,8 +358,6 @@ export class GameEngineService {
       winningCardName: winningSymbol.name,
       winningCardSymbol: winningSymbol.symbol,
       totalPayout: totalPaidOut,
-      adminProfit: netProfit,
-      marginPercent: Math.round(profitMargin * 10) / 10,
       betsCount: betsList.length,
       bets: betsList,
       winners: winnersList,
@@ -426,12 +425,6 @@ export class GameEngineService {
 
     await Ledger.waitRound(roundId);
 
-    // Atomic Balance Deduction
-    const deductRes = await DB.atomicWalletDeduct(userId, amount);
-    if (!deductRes.success) {
-      throw new Error(deductRes.error || 'Insufficient wallet balance');
-    }
-
     const betId = crypto.randomUUID();
     const newBet = {
       id: betId,
@@ -444,28 +437,10 @@ export class GameEngineService {
       createdAt: new Date()
     };
 
-    // Store in active room bets map & memory DB
+    const committed = await Ledger.placeBetAtomic(newBet);
+
+    // Publish only after the wallet, bet, and ledger transaction commit together.
     roomState.bets.set(betId, newBet);
-    DB.memory.bets.set(betId, newBet);
-
-    // Enqueue for asynchronous bulk micro-batching to PostgreSQL (500 records/batch)
-    BetQueueService.enqueue(newBet);
-
-    // Record wager against 1.0x deposit turnover requirement
-    TurnoverService.recordBetTurnover(userId, amount).catch(() => {});
-
-    // Record transaction
-    const txId = crypto.randomUUID();
-    DB.memory.transactions.set(txId, {
-      id: txId,
-      userId,
-      type: TxType.BET_PLACED,
-      status: TxStatus.SUCCESS,
-      amount,
-      utrNumber: `BET-${betId.substring(0, 8)}`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
 
     console.log(`[BET] 🎟️ User ${userId} placed ₹${amount} on Card #${chosenCard} in Room ${roomId}`);
 
@@ -474,7 +449,7 @@ export class GameEngineService {
       roundId,
       chosenCard,
       amount,
-      newBalance: deductRes.newBalance
+      newBalance: committed.newBalance
     };
   }
 
@@ -489,12 +464,7 @@ export class GameEngineService {
       status: s.status,
       secondsRemaining: s.secondsRemaining,
       activeBetsCount: s.bets.size,
-      currentPool: Array.from(s.bets.values()).reduce((sum, b) => sum + b.amount, 0),
-      lastRoundStats: s.roundStats ? {
-        totalPool: s.roundStats.totalPool,
-        totalPayout: s.roundStats.totalPayout,
-        optimizedCard: s.roundStats.optimizedCard
-      } : null
+      currentPool: Array.from(s.bets.values()).reduce((sum, b) => sum + b.amount, 0)
     }));
   }
 

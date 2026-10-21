@@ -10,7 +10,7 @@ interface MemoryStore {
   gameRounds: Map<string, any>;
   bets: Map<string, any>;
   transactions: Map<string, any>;
-  otps: Map<string, { otp: string; expiresAt: number }>;
+  otps: Map<string, { otp: string; expiresAt: number; attempts: number }>;
 }
 
 const memoryStore: MemoryStore = {

@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service.js';
+import { readAccessToken } from '../services/session-cookie.js';
 
 export function requireRole(...roles: Array<'ADMIN' | 'AGENT' | 'USER'>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    const payload = token ? AuthService.verifyToken(token) : null;
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const token = readAccessToken(req);
+    const payload = token ? await AuthService.verifyToken(token) : null;
     if (!payload) {
       return res.status(401).json({ success: false, error: 'Login required.' });
     }

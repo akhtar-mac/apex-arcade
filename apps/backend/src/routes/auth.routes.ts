@@ -4,6 +4,7 @@ import { otpRateLimiter, authRateLimiter } from '../middlewares/rate-limiter.mid
 import { Ledger } from '../services/ledger.service.js';
 import { ComplianceService } from '../services/compliance.service.js';
 import bcrypt from 'bcryptjs';
+import { attachSession, clearSessionCookie, readAccessToken } from '../services/session-cookie.js';
 
 export const authRouter = Router();
 
@@ -26,25 +27,23 @@ authRouter.post('/send-otp', otpRateLimiter, async (req: Request, res: Response)
       return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit Indian mobile number.' });
     }
     await AuthService.generateOtp(cleanPhone);
-    const existingUser = await Ledger.findUserByPhone(cleanPhone);
     return res.json({
       success: true,
-      message: `Verification code sent to +91 ${cleanPhone}`,
-      isExistingUser: !!existingUser
+      message: `If this number can receive messages, a verification code was sent to +91 ${cleanPhone.slice(0, 2)}******${cleanPhone.slice(-2)}.`
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-authRouter.post('/verify-otp', async (req: Request, res: Response) => {
+authRouter.post('/verify-otp', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const cleanPhone = (req.body.phoneNumber || '').toString().replace(/\D/g, '').slice(-10);
     const otp = (req.body.otp || '').toString().trim();
     if (cleanPhone.length !== 10) {
       return res.status(400).json({ success: false, error: 'Valid 10-digit phone number is required.' });
     }
-    if (!AuthService.verifyOtp(cleanPhone, otp)) {
+    if (!await AuthService.verifyOtp(cleanPhone, otp)) {
       return res.status(400).json({ success: false, error: 'Invalid or expired verification code.' });
     }
 
@@ -57,6 +56,7 @@ authRouter.post('/verify-otp', async (req: Request, res: Response) => {
       }
       const wallet = Ledger.walletOf(user.id);
       const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+      attachSession(res, tokens.accessToken);
       return res.json({
         success: true,
         isNewUser: false,
@@ -69,16 +69,17 @@ authRouter.post('/verify-otp', async (req: Request, res: Response) => {
       success: true,
       isNewUser: true,
       message: 'OTP verified. Complete registration. New wallets start at ₹0.',
-      phoneNumber: cleanPhone
+      phoneNumber: cleanPhone,
+      registrationToken: AuthService.generateRegistrationToken(cleanPhone)
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-authRouter.post('/register', async (req: Request, res: Response) => {
+authRouter.post('/register', authRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { fullName, phoneNumber, state, email, payoutUpi, ageConfirmed, otp, password } = req.body;
+    const { fullName, phoneNumber, state, email, payoutUpi, ageConfirmed, registrationToken, password } = req.body;
     const cleanPhone = (phoneNumber || '').toString().replace(/\D/g, '').slice(-10);
     if (cleanPhone.length !== 10) {
       return res.status(400).json({ success: false, error: 'Valid 10-digit Indian phone number required.' });
@@ -92,8 +93,8 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
       return res.status(400).json({ success: false, error: 'Enter a valid email address, or leave it blank.' });
     }
-    if (!AuthService.verifyOtp(cleanPhone, (otp || '').toString().trim())) {
-      return res.status(400).json({ success: false, error: 'Invalid or expired OTP code.' });
+    if (!AuthService.verifyRegistrationToken(String(registrationToken || ''), cleanPhone)) {
+      return res.status(400).json({ success: false, error: 'Registration verification expired. Request a new OTP.' });
     }
     if (await Ledger.findUserByPhone(cleanPhone)) {
       return res.status(400).json({ success: false, error: 'Phone number already registered. Please sign in.' });
@@ -112,6 +113,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     });
 
     const tokens = AuthService.generateTokenPair(created.user.id, cleanPhone, 'USER' as any);
+    attachSession(res, tokens.accessToken);
     return res.status(201).json({
       success: true,
       message: `Welcome, ${fullName}. Your wallet starts at ₹0. Add money by paying the published QR.`,
@@ -127,7 +129,7 @@ const SHOWCASE_PHONE = '9000000100';
 authRouter.post('/demo-login', authRateLimiter, async (_req: Request, res: Response) => {
   try {
     const { Config } = await import('../config.js');
-    if (!Config.allowDemoOtp) {
+    if (!Config.enableDemoLogin) {
       return res.status(404).json({ success: false, error: 'Demo login is not available.' });
     }
 
@@ -140,16 +142,19 @@ authRouter.post('/demo-login', authRateLimiter, async (_req: Request, res: Respo
         role: 'USER',
         fullName: 'Demo Player',
         state: 'Maharashtra',
-        ageConfirmed: true
+        ageConfirmed: true,
+        isDemo: true
       });
       user = created.user;
     }
     if (!user) {
       return res.status(500).json({ success: false, error: 'Demo account could not be opened.' });
     }
+    user = await Ledger.markAsDemo(user.id);
     await ComplianceService.assertCanUseAccount(user.id);
     const wallet = await Ledger.ensureShowcaseFunds(user.id, 100000);
     const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+    attachSession(res, tokens.accessToken);
     return res.json({
       success: true,
       message: 'Demo account ready.',
@@ -160,40 +165,35 @@ authRouter.post('/demo-login', authRateLimiter, async (_req: Request, res: Respo
   }
 });
 
-authRouter.post('/quick-login', async (req: Request, res: Response) => {
+authRouter.post('/quick-login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const cleanPhone = (req.body.phoneNumber || '').toString().replace(/\D/g, '').slice(-10);
     const otp = (req.body.otp || '').toString().trim();
     if (cleanPhone.length !== 10) {
       return res.status(400).json({ success: false, error: 'Valid 10-digit phone number is required.' });
     }
-    if (!AuthService.verifyOtp(cleanPhone, otp)) {
+    if (!await AuthService.verifyOtp(cleanPhone, otp)) {
       return res.status(400).json({ success: false, error: 'Invalid or expired verification code.' });
     }
 
-    let user = await Ledger.findUserByPhone(cleanPhone);
+    const user = await Ledger.findUserByPhone(cleanPhone);
     if (user) {
       await ComplianceService.assertCanUseAccount(user.id);
     }
-    let wallet = user ? Ledger.walletOf(user.id) : null;
     if (!user) {
-      const passwordHash = await bcrypt.hash(cryptoRandom(), 10);
-      const created = await Ledger.createUser({
-        phoneNumber: cleanPhone,
-        passwordHash,
-        role: 'USER',
-        fullName: `Player ${cleanPhone.slice(-4)}`,
-        ageConfirmed: false
+      return res.status(409).json({
+        success: false,
+        isNewUser: true,
+        error: 'Complete registration before using this account.'
       });
-      user = created.user;
-      wallet = created.wallet;
     }
 
     const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+    attachSession(res, tokens.accessToken);
     return res.json({
       success: true,
       message: 'Login successful.',
-      data: { user: publicUser(user), wallet, ...tokens }
+      data: { user: publicUser(user), wallet: Ledger.walletOf(user.id), ...tokens }
     });
   } catch (err: any) {
     return res.status(400).json({ success: false, error: err.message });
@@ -215,6 +215,7 @@ authRouter.post('/staff-login', authRateLimiter, async (req: Request, res: Respo
       return res.status(401).json({ success: false, error: 'Invalid phone number or password.' });
     }
     const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+    attachSession(res, tokens.accessToken);
     return res.json({
       success: true,
       data: { user: publicUser(user), ...tokens }
@@ -237,6 +238,7 @@ authRouter.post('/login', authRateLimiter, async (req: Request, res: Response) =
     }
     await ComplianceService.assertCanUseAccount(user.id);
     const tokens = AuthService.generateTokenPair(user.id, user.phoneNumber, user.role);
+    attachSession(res, tokens.accessToken);
     return res.json({
       success: true,
       data: { user: publicUser(user), wallet: Ledger.walletOf(user.id), ...tokens }
@@ -246,12 +248,18 @@ authRouter.post('/login', authRateLimiter, async (req: Request, res: Response) =
   }
 });
 
+authRouter.post('/logout', async (req: Request, res: Response) => {
+  await AuthService.revokePresentedToken(readAccessToken(req));
+  res.setHeader('Set-Cookie', clearSessionCookie());
+  return res.json({ success: true });
+});
+
 authRouter.get('/me', async (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const token = readAccessToken(req);
+  if (!token) {
     return res.status(401).json({ success: false, error: 'Missing authorization token' });
   }
-  const payload = AuthService.verifyToken(authHeader.split(' ')[1]);
+  const payload = await AuthService.verifyToken(token);
   if (!payload) {
     return res.status(401).json({ success: false, error: 'Invalid or expired token' });
   }
@@ -271,8 +279,7 @@ function cryptoRandom() {
 
 authRouter.post('/compliance', async (req: Request, res: Response) => {
   try {
-    const header = req.headers.authorization || '';
-    const payload = header.startsWith('Bearer ') ? AuthService.verifyToken(header.slice(7)) : null;
+    const payload = await AuthService.verifyToken(readAccessToken(req));
     if (!payload) return res.status(401).json({ success: false, error: 'Login required.' });
     const user = await ComplianceService.updateProfile(payload.userId, {
       ageConfirmed: req.body.ageConfirmed,

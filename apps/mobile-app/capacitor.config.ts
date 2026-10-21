@@ -1,16 +1,19 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const serverUrl = process.env.CAPACITOR_SERVER_URL;
+if (serverUrl && !serverUrl.startsWith('https://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(serverUrl)) {
+  throw new Error('CAPACITOR_SERVER_URL must use HTTPS except for local development.');
+}
 
 const config: CapacitorConfig = {
   appId: 'com.apexarcade.gaming',
   appName: 'Apex Arcade',
   webDir: 'dist',
   server: serverUrl
-    ? { url: serverUrl, cleartext: serverUrl.startsWith('http://'), androidScheme: 'https' }
+    ? { url: serverUrl, cleartext: /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(serverUrl), androidScheme: 'https' }
     : { androidScheme: 'https', cleartext: false },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false,
     captureInput: true,
     webContentsDebuggingEnabled: false
   },

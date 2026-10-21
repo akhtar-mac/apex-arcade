@@ -11,41 +11,78 @@ import { SmsService } from './sms.service.js';
 
 export class AuthService {
   private static revokedTokens = new Set<string>();
+  private static revokedJtis = new Set<string>();
+  private static readonly otpTtlSec = 10 * 60;
+  private static readonly maxOtpAttempts = 5;
 
   static async generateOtp(phoneNumber: string): Promise<string> {
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000;
+    const otp = Config.testOtp || crypto.randomInt(100000, 1000000).toString();
+    const expiresAt = Date.now() + this.otpTtlSec * 1000;
     const sent = await SmsService.sendOtp(phoneNumber, otp);
     if (!sent.success) {
       throw new Error('SMS is not configured. Add a Fast2SMS or MSG91 key before players can log in.');
     }
-    DB.memory.otps.set(phoneNumber, { otp, expiresAt });
+    const record = { otp, expiresAt, attempts: 0 };
+    if (RedisService.isConnected()) {
+      await RedisService.getClient().set(`otp:${phoneNumber}`, JSON.stringify(record), 'EX', this.otpTtlSec);
+    } else {
+      DB.memory.otps.set(phoneNumber, record);
+    }
     return otp;
   }
 
-  static verifyOtp(phoneNumber: string, inputOtp: string): boolean {
-    if (Config.allowDemoOtp && (inputOtp === '1234' || inputOtp === '123456')) {
-      return true;
+  static async verifyOtp(phoneNumber: string, inputOtp: string): Promise<boolean> {
+    let record: { otp: string; expiresAt: number; attempts: number } | undefined;
+    if (RedisService.isConnected()) {
+      const raw = await RedisService.getClient().get(`otp:${phoneNumber}`);
+      if (raw) {
+        try {
+          record = JSON.parse(raw);
+        } catch {
+          await RedisService.getClient().del(`otp:${phoneNumber}`);
+        }
+      }
+    } else {
+      record = DB.memory.otps.get(phoneNumber);
     }
 
-    const record = DB.memory.otps.get(phoneNumber);
     if (!record) return false;
     if (Date.now() > record.expiresAt) {
-      DB.memory.otps.delete(phoneNumber);
+      await this.deleteOtp(phoneNumber);
       return false;
     }
-    if (record.otp === inputOtp) {
-      DB.memory.otps.delete(phoneNumber);
+    const expected = Buffer.from(record.otp);
+    const supplied = Buffer.from(inputOtp);
+    if (expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied)) {
+      await this.deleteOtp(phoneNumber);
       return true;
     }
+    record.attempts += 1;
+    if (record.attempts >= this.maxOtpAttempts) {
+      await this.deleteOtp(phoneNumber);
+      return false;
+    }
+    if (RedisService.isConnected()) {
+      const ttl = Math.max(1, Math.ceil((record.expiresAt - Date.now()) / 1000));
+      await RedisService.getClient().set(`otp:${phoneNumber}`, JSON.stringify(record), 'EX', ttl);
+    } else {
+      DB.memory.otps.set(phoneNumber, record);
+    }
     return false;
+  }
+
+  private static async deleteOtp(phoneNumber: string) {
+    DB.memory.otps.delete(phoneNumber);
+    if (RedisService.isConnected()) {
+      await RedisService.getClient().del(`otp:${phoneNumber}`);
+    }
   }
 
   /**
    * Zero-Friction Phone + OTP Registration with Device Bonus Abuse Protection
    */
   static async register(phoneNumber: string, passwordPlain: string, otp: string, deviceId?: string) {
-    if (!this.verifyOtp(phoneNumber, otp)) {
+    if (!await this.verifyOtp(phoneNumber, otp)) {
       throw new Error('Invalid or expired OTP');
     }
 
@@ -130,7 +167,7 @@ export class AuthService {
    * If new user -> auto-registers without password prompts
    */
   static async quickLoginWithOtp(phoneNumber: string, otp: string, deviceId?: string) {
-    if (!this.verifyOtp(phoneNumber, otp)) {
+    if (!await this.verifyOtp(phoneNumber, otp)) {
       throw new Error('Invalid or expired OTP');
     }
 
@@ -170,12 +207,7 @@ export class AuthService {
 
     // If new user, auto-register seamlessly with Phone + OTP (no documents asked!)
     const autoPassword = `apex_${Math.random().toString(36).substring(2, 10)}`;
-    const regResult = await this.register(phoneNumber, autoPassword, '123456', deviceId);
-    console.log(`[AUTH] 🚀 Auto-onboarded new user ${phoneNumber} via 1-click OTP!`);
-    return {
-      ...regResult,
-      isNewUser: true
-    };
+    throw new Error('Complete registration before using this account.');
   }
 
   static async login(phoneNumber: string, passwordPlain: string) {
@@ -247,8 +279,13 @@ export class AuthService {
     }
   }
 
-  static isSessionDenied(userId: string) {
-    return this.revokedTokens.has(userId);
+  static async isSessionDenied(userId: string) {
+    if (this.revokedTokens.has(userId)) return true;
+    if (RedisService.isConnected()) {
+      const revoked = await RedisService.getClient().get(`user:${userId}:revoked`);
+      if (revoked === '1') return true;
+    }
+    return false;
   }
 
   static async revokeUserSessions(userId: string) {
@@ -258,18 +295,64 @@ export class AuthService {
 
   static generateTokenPair(userId: string, phoneNumber: string, role: Role) {
     const payload = { userId, phoneNumber, role };
-    const accessToken = jwt.sign(payload, Config.jwtSecret, { expiresIn: '24h' });
-    const refreshToken = jwt.sign(payload, Config.jwtRefreshSecret, { expiresIn: '7d' });
-    return { accessToken, refreshToken };
+    const accessToken = jwt.sign(payload, Config.jwtSecret, { expiresIn: '1h', jwtid: crypto.randomUUID() });
+    return { accessToken };
   }
 
-  static verifyToken(token: string) {
+  static async revokePresentedToken(token: string): Promise<void> {
+    if (!token) return;
+    let payload: jwt.JwtPayload;
     try {
-      const payload = jwt.verify(token, Config.jwtSecret) as { userId: string; phoneNumber: string; role: Role };
-      if (this.revokedTokens.has(payload.userId)) {
-        return null;
-      }
-      return payload;
+      payload = jwt.verify(token, Config.jwtSecret) as jwt.JwtPayload;
+    } catch {
+      return;
+    }
+    const jti = typeof payload.jti === 'string' ? payload.jti : '';
+    const userId = typeof payload.userId === 'string' ? payload.userId : '';
+    const expMs = typeof payload.exp === 'number' ? payload.exp * 1000 : Date.now() + 3600_000;
+    if (!jti || !userId || expMs <= Date.now()) return;
+    this.revokedJtis.add(jti);
+    await DB.getPrisma().revokedAccessToken.upsert({
+      where: { jti },
+      update: {},
+      create: { jti, userId, expiresAt: new Date(expMs) }
+    });
+    console.log(JSON.stringify({ event: 'session_revoked', userId, jtiPrefix: jti.slice(0, 8) }));
+  }
+
+  static async isJtiRevoked(jti: string): Promise<boolean> {
+    if (this.revokedJtis.has(jti)) return true;
+    const row = await DB.getPrisma().revokedAccessToken.findUnique({ where: { jti } });
+    if (!row || row.expiresAt.getTime() <= Date.now()) return false;
+    this.revokedJtis.add(jti);
+    return true;
+  }
+
+  static generateRegistrationToken(phoneNumber: string) {
+    return jwt.sign({ phoneNumber, purpose: 'register' }, Config.jwtSecret, { expiresIn: '10m' });
+  }
+
+  static verifyRegistrationToken(token: string, phoneNumber: string) {
+    try {
+      const payload = jwt.verify(token, Config.jwtSecret) as { phoneNumber?: string; purpose?: string };
+      return payload.purpose === 'register' && payload.phoneNumber === phoneNumber;
+    } catch {
+      return false;
+    }
+  }
+
+  static async verifyToken(token: string) {
+    try {
+      const payload = jwt.verify(token, Config.jwtSecret) as { userId: string; phoneNumber: string; role: Role; jti?: string; purpose?: string };
+      if (payload.purpose === 'register' || !payload.jti || !payload.userId) return null;
+      if (await this.isSessionDenied(payload.userId)) return null;
+      if (await this.isJtiRevoked(payload.jti)) return null;
+      const user = await DB.getPrisma().user.findUnique({
+        where: { id: payload.userId },
+        select: { phoneNumber: true, role: true, isBanned: true }
+      });
+      if (!user || user.isBanned) return null;
+      return { userId: payload.userId, phoneNumber: user.phoneNumber, role: user.role as Role };
     } catch {
       return null;
     }

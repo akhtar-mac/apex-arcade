@@ -180,7 +180,7 @@ export const SubmitUtrSchema = z.object({
   transactionId: z.string().min(1).optional(),
   utrNumber: z.string().regex(/^\d{12}$/, 'UTR must be a 12-digit reference number'),
   amount: z.number().positive().min(100),
-  screenshotBase64: z.string().optional()
+  screenshotBase64: z.string().max(2_800_000, 'Payment screenshot must be 2 MB or smaller').optional()
 });
 export type SubmitUtrRequest = z.infer<typeof SubmitUtrSchema>;
 
@@ -210,6 +210,9 @@ export interface RoundTickPayload {
   roundNumber: number;
   status: RoundStatus;
   secondsRemaining: number;
+  seedCommitment?: string;
+  clientSeed?: string;
+  nonce?: number;
 }
 
 export interface RoundLockedPayload {
@@ -226,6 +229,10 @@ export interface RoundResultPayload {
   winningCard: number;
   winningSymbol: PictureCard;
   multiplier: number;
+  serverSeed: string;
+  seedCommitment: string;
+  clientSeed: string;
+  nonce: number;
   revealedAt: string;
 }
 

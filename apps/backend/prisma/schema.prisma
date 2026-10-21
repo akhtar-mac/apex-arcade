@@ -48,6 +48,7 @@ model User {
   email        String?
   state        String?
   ageConfirmed Boolean      @default(false)
+  isDemo       Boolean      @default(false)
   termsVersion String?
   legalName    String?
   dailyDepositCap Decimal?  @db.Decimal(12, 2)
@@ -94,8 +95,11 @@ model GameRound {
   totalPool    Decimal?    @db.Decimal(12, 2)
   houseProfit  Decimal?    @db.Decimal(12, 2)
   profitMargin Decimal?    @db.Decimal(5, 2)
+  ruleVersion  String      @default("2026-10-21-rejection-sample-v1")
   bets         Bet[]
   createdAt    DateTime    @default(now())
+
+  @@index([roomId, createdAt])
 }
 
 model Bet {
@@ -109,6 +113,8 @@ model Bet {
   isWin       Boolean?
   payout      Decimal?  @db.Decimal(10, 2)
   createdAt   DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Transaction {
@@ -131,6 +137,9 @@ model Transaction {
   rejectionReason String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([type, status, createdAt])
 }
 
 model UpiAccount {
@@ -193,6 +202,15 @@ model EventCard {
 
   @@unique([eventId, position])
   @@index([eventId])
+}
+
+model RevokedAccessToken {
+  jti       String   @id
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model TdsRecord {

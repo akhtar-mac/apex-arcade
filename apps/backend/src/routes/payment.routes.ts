@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service.js';
 import { TurnoverService } from '../services/turnover.service.js';
 import { TdsService } from '../services/tds.service.js';
@@ -6,6 +6,8 @@ import { AuthService } from '../services/auth.service.js';
 import { DepositIntentSchema, SubmitUtrSchema, WithdrawRequestSchema } from '@arcade/shared-types';
 import { DB } from '../db.js';
 import { paymentRateLimiter } from '../middlewares/rate-limiter.middleware.js';
+import { Config } from '../config.js';
+import { readAccessToken } from '../services/session-cookie.js';
 
 export const paymentRouter = Router();
 
@@ -24,10 +26,9 @@ paymentRouter.post('/bank-statement-webhook', (_req: Request, res: Response) => 
   });
 });
 
-function requireUser(req: Request, res: Response, next: Function) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  const payload = token ? AuthService.verifyToken(token) : null;
+async function requireUser(req: Request, res: Response, next: NextFunction) {
+  const token = readAccessToken(req);
+  const payload = token ? await AuthService.verifyToken(token) : null;
   if (payload) (req as any).user = payload;
 
   if (req.method === 'GET' && req.path === '/active-upi') return next();
@@ -38,8 +39,8 @@ function requireUser(req: Request, res: Response, next: Function) {
     if (payload.role !== 'ADMIN' && payload.role !== 'AGENT') {
       return res.status(403).json({ success: false, error: 'Only the desk can change a QR.' });
     }
-    if (req.path === '/reset-all-limits' && payload.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, error: 'Only an admin can reset every limit.' });
+    if (req.method !== 'GET' && req.method !== 'HEAD' && payload.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Only an admin can change a QR.' });
     }
     return next();
   }
@@ -49,6 +50,13 @@ function requireUser(req: Request, res: Response, next: Function) {
 }
 
 paymentRouter.use(requireUser);
+
+function requireRegulatedRelease(_req: Request, res: Response, next: NextFunction) {
+  if (!Config.regulatedFeaturesEnabled) {
+    return res.status(503).json({ success: false, error: 'Money movement is disabled in this restricted release.' });
+  }
+  return next();
+}
 
 // ── 1C. User 1.0x Turnover & Wagering Status ──
 paymentRouter.get('/turnover-status', async (req: Request, res: Response) => {
@@ -72,19 +80,11 @@ paymentRouter.get('/tds-summary', async (req: Request, res: Response) => {
   }
 });
 
-// ── 2. Create Automated UPI Intent Order (GPay, PhonePe, Paytm, Generic UPI) ──
-paymentRouter.post('/auto-order', async (req: Request, res: Response) => {
-  try {
-    const amount = Number(req.body.amount);
-    if (!amount || amount < 10) {
-      return res.status(400).json({ success: false, error: 'Minimum deposit amount is ₹10' });
-    }
-    const userId = (req as any).user.userId;
-    const order = await PaymentService.createAutomatedOrder(userId, amount);
-    return res.json({ success: true, data: order });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+paymentRouter.post('/auto-order', (_req: Request, res: Response) => {
+  return res.status(410).json({
+    success: false,
+    error: 'Automatic payment orders are disabled. Use the published QR and submit the 12-digit UTR.'
+  });
 });
 
 // ── 3. Sandbox / Instant Simulated Payment Trigger ──
@@ -96,7 +96,7 @@ paymentRouter.post('/simulate-auto-pay', (_req: Request, res: Response) => {
 });
 
 // ── 4. Manual P2P QR Intent (Fallback) ──
-paymentRouter.post('/deposit-intent', paymentRateLimiter, async (req: Request, res: Response) => {
+paymentRouter.post('/deposit-intent', requireRegulatedRelease, paymentRateLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = DepositIntentSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -111,7 +111,7 @@ paymentRouter.post('/deposit-intent', paymentRateLimiter, async (req: Request, r
 });
 
 // ── 5. Submit Manual 12-digit UTR Proof for P2P Verification ──
-paymentRouter.post('/submit-utr', paymentRateLimiter, async (req: Request, res: Response) => {
+paymentRouter.post('/submit-utr', requireRegulatedRelease, paymentRateLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = SubmitUtrSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -136,7 +136,7 @@ paymentRouter.post('/submit-utr', paymentRateLimiter, async (req: Request, res: 
 });
 
 // ── 6. Request Withdrawal (Auto-approves < ₹2,000, Queues >= ₹2,000) ──
-paymentRouter.post('/withdraw', paymentRateLimiter, async (req: Request, res: Response) => {
+paymentRouter.post('/withdraw', requireRegulatedRelease, paymentRateLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = WithdrawRequestSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -155,11 +155,18 @@ paymentRouter.post('/withdraw', paymentRateLimiter, async (req: Request, res: Re
 });
 
 // ── 7. Get User's Transaction History ──
-paymentRouter.get('/history', (req: Request, res: Response) => {
+paymentRouter.get('/history', async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
-  const history = Array.from(DB.memory.transactions.values())
-    .filter(t => t.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const before = req.query.before ? new Date(String(req.query.before)) : undefined;
+  if (before && Number.isNaN(before.getTime())) {
+    return res.status(400).json({ success: false, error: 'Invalid history cursor.' });
+  }
+  const history = await DB.getPrisma().transaction.findMany({
+    where: { userId, ...(before ? { createdAt: { lt: before } } : {}) },
+    orderBy: { createdAt: 'desc' },
+    take: limit
+  });
   return res.json({ success: true, data: history });
 });
 

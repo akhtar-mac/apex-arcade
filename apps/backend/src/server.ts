@@ -10,30 +10,43 @@ import { gameRouter } from './routes/game.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
 import { setupSocketServer } from './socket.js';
 import { GameEngineService } from './services/game-engine.service.js';
-import { BetQueueService } from './services/bet-queue.service.js';
 import { dbReady } from './db.js';
+import { redactSensitive } from '@arcade/shared-utils';
 
 const app = express();
 const server = http.createServer(app);
 
+app.set('trust proxy', 1);
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestId = req.get('x-request-id') || crypto.randomUUID();
+  res.setHeader('X-Request-Id', requestId);
+  (req as Request & { requestId?: string }).requestId = requestId;
+  next();
+});
 app.use(cors({
   origin(origin, callback) {
     if (isAllowedOrigin(origin)) return callback(null, true);
     return callback(null, false);
-  }
+  },
+  credentials: true
 }));
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' ws: wss:;");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 
 // JSON and URL-encoded request body parsing
 app.use(express.json({ limit: '8mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Chrome DevTools & well-known handler
-app.get('/.well-known/appspecific/com.chrome.devtools.json', (req: Request, res: Response) => {
-  res.json({ workspace: { root: process.cwd() } });
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  const origin = req.get('origin');
+  if (!origin || isAllowedOrigin(origin)) return next();
+  return res.status(403).json({ success: false, error: 'This origin cannot change account state.' });
 });
 
 app.get('/favicon.ico', (req: Request, res: Response) => {
@@ -267,11 +280,28 @@ app.use('/api/v1/admin', adminRouter);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('[SERVER ERROR]', err);
-  res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
+  console.error(JSON.stringify(redactSensitive({
+    event: 'unhandled_error',
+    requestId: (req as Request & { requestId?: string }).requestId || null,
+    name: err?.name || 'Error',
+    message: typeof err?.message === 'string' ? err.message.slice(0, 300) : 'unknown'
+  })));
+  res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
-dbReady.then(() => {
+dbReady.then(async () => {
+  const { screenshotRetentionDecision } = await import('@arcade/shared-utils');
+  await getPrisma().revokedAccessToken.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+  const decision = screenshotRetentionDecision(process.env.SCREENSHOT_RETENTION_DAYS);
+  if (decision.enabled && decision.cutoff) {
+    const cleared = await getPrisma().transaction.updateMany({
+      where: { screenshot: { not: null }, createdAt: { lt: decision.cutoff } },
+      data: { screenshot: null }
+    });
+    console.log(JSON.stringify({ event: 'screenshot_retention', cleared: cleared.count }));
+  } else {
+    console.log(JSON.stringify({ event: 'screenshot_retention_skipped', reason: decision.reason }));
+  }
   setupSocketServer(server);
   GameEngineService.initialize();
   server.listen(Config.port, '0.0.0.0', () => {
@@ -282,30 +312,30 @@ dbReady.then(() => {
     console.log(`=======================================================`);
   });
 }).catch((err) => {
-  console.error('[DATABASE] Postgres ledger did not start. The API will not take money until it does.');
-  console.error(err);
+  console.error(JSON.stringify(redactSensitive({
+    event: 'database_startup_failed',
+    message: typeof err?.message === 'string' ? err.message.slice(0, 300) : 'unknown'
+  })));
   process.exit(1);
 });
 
 // Catch unhandled rejections to prevent crashing in dev/fallback environments
-process.on('unhandledRejection', (reason, promise) => {
-  console.warn('[SERVER WARNING] Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  const message = reason instanceof Error ? reason.message : 'non-error rejection';
+  console.warn(JSON.stringify(redactSensitive({ event: 'unhandled_rejection', message: message.slice(0, 300) })));
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[SERVER ERROR] Uncaught Exception:', err);
+  console.error(JSON.stringify(redactSensitive({ event: 'uncaught_exception', message: err.message.slice(0, 300) })));
 });
 
-// Graceful shutdown: Flush micro-batch queue before termination
 process.on('SIGTERM', async () => {
-  console.log('[SERVER] 🛑 SIGTERM received, flushing pending bets to PostgreSQL...');
-  await BetQueueService.flushAll();
+  console.log('[SERVER] SIGTERM received; closing committed-ledger service.');
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('[SERVER] 🛑 SIGINT received, flushing pending bets to PostgreSQL...');
-  await BetQueueService.flushAll();
+  console.log('[SERVER] SIGINT received; closing committed-ledger service.');
   process.exit(0);
 });
 

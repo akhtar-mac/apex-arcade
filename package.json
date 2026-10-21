@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "Enterprise-grade real-time 12-picture arcade betting & P2P platform capable of 10,000 CCU",
+  "description": "Restricted-stage 14-picture arcade game with a manual P2P UPI desk",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -20,7 +20,15 @@
     "dev:mobile": "npm --workspace=apps/mobile-app run dev",
     "dev:p2p": "npm --workspace=apps/p2p-panel run dev",
     "test": "node --test tests/*.test.js",
-    "test:10k": "node --test tests/load-test-10000-ccu.test.js",
+    "test:integration": "node tests/desk-flow.mjs",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep @a11y",
+    "lint": "eslint apps packages scripts tests eslint.config.js playwright.config.ts",
+    "format:check": "prettier --check \"docs/**/*.md\" \".github/**/*.yml\" \"eslint.config.js\" \"playwright.config.ts\"",
+    "typecheck": "npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npm --workspace=apps/backend run build && npm --workspace=apps/mobile-app run build && npm --workspace=apps/p2p-panel run build && npm --workspace=apps/web-admin run build && npm --workspace=apps/web-landing run build",
+    "audit:deps": "npm audit --omit=dev --audit-level=high",
+    "audit:deps:all": "npm audit --audit-level=high",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "build": "npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npm --workspace=apps/backend run prisma:generate && npm --workspace=apps/backend run build && npm --workspace=apps/mobile-app run build && npm --workspace=apps/p2p-panel run build && npm --workspace=apps/web-admin run build && npm --workspace=apps/web-landing run build",
     "prod:deploy": "node scripts/deploy-prod.js",
     "docker:up": "docker compose up -d",
@@ -38,5 +46,14 @@
     "redis"
   ],
   "author": "Apex Arcade Engineering Team",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.56.1",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.0"
+  }
 }

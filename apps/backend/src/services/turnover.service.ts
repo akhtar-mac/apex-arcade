@@ -1,47 +1,6 @@
 import { DB } from '../db.js';
-import { WalletService } from './wallet.service.js';
-
-// In-memory turnover tracking with PostgreSQL synchronization
-const turnoverStore = new Map<string, number>();
 
 export class TurnoverService {
-  /**
-   * Adds deposit amount to unwagered turnover requirement (1.0x rule)
-   */
-  static async addDepositTurnover(userId: string, depositAmount: number) {
-    const current = turnoverStore.get(userId) || 0;
-    const updated = Math.round((current + depositAmount + Number.EPSILON) * 100) / 100;
-    turnoverStore.set(userId, updated);
-    console.log(`[TURNOVER] 🔄 Added ₹${depositAmount} wagering requirement for User ${userId}. Total unwagered: ₹${updated}`);
-
-    try {
-      const prisma = DB.getPrisma();
-      await prisma.wallet.updateMany({
-        where: { userId },
-        data: { unwagered: updated, updatedAt: new Date() }
-      });
-    } catch {}
-  }
-
-  /**
-   * Deducts bet stake from unwagered requirement when a bet is placed
-   */
-  static async recordBetTurnover(userId: string, betAmount: number) {
-    const current = turnoverStore.get(userId) || 0;
-    if (current <= 0) return;
-
-    const updated = Math.max(0, Math.round((current - betAmount + Number.EPSILON) * 100) / 100);
-    turnoverStore.set(userId, updated);
-
-    try {
-      const prisma = DB.getPrisma();
-      await prisma.wallet.updateMany({
-        where: { userId },
-        data: { unwagered: updated, updatedAt: new Date() }
-      });
-    } catch {}
-  }
-
   /**
    * Returns current turnover and withdrawable balance
    */
@@ -51,25 +10,13 @@ export class TurnoverService {
     withdrawableAmount: number;
     turnoverComplete: boolean;
   }> {
-    const wallet = await WalletService.getBalance(userId);
-    let unwagered = turnoverStore.get(userId);
-
-    if (unwagered === undefined) {
-      // Hydrate from DB
-      try {
-        const prisma = DB.getPrisma();
-        const dbWallet = await prisma.wallet.findUnique({ where: { userId } });
-        unwagered = dbWallet ? Number(dbWallet.unwagered || 0) : 0;
-        turnoverStore.set(userId, unwagered);
-      } catch {
-        unwagered = 0;
-      }
-    }
-
-    const withdrawable = Math.max(0, Math.round((wallet.balance - unwagered + Number.EPSILON) * 100) / 100);
+    const dbWallet = await DB.getPrisma().wallet.findUnique({ where: { userId } });
+    const balance = dbWallet ? Number(dbWallet.balance) : 0;
+    const unwagered = dbWallet ? Number(dbWallet.unwagered) : 0;
+    const withdrawable = Math.max(0, Math.round((balance - unwagered + Number.EPSILON) * 100) / 100);
 
     return {
-      totalBalance: wallet.balance,
+      totalBalance: balance,
       unwageredAmount: unwagered,
       withdrawableAmount: withdrawable,
       turnoverComplete: unwagered === 0

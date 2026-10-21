@@ -79,11 +79,12 @@ services:
     environment:
       PORT: 4000
       WORKER_ID: "worker-node-1"
-      NODE_ENV: production
+      NODE_ENV: development
+      ENABLE_DEMO_LOGIN: "false"
+      ENABLE_REGULATED_FEATURES: "false"
       DATABASE_URL: "postgresql://arcade_user:arcade_secure_password_2026@postgres:5432/arcade_db?schema=public"
       REDIS_URL: "redis://:arcade_redis_secret_2026@redis:6379"
       JWT_SECRET: "arcade_super_jwt_secret_token_key_9921"
-      JWT_REFRESH_SECRET: "arcade_super_refresh_jwt_secret_token_key_1102"
     ports:
       - "4000:4000"
     networks:

@@ -9,7 +9,11 @@ const tunnels = [
 ];
 
 async function startTunnel(t) {
-  try { fs.unlinkSync(t.logFile); } catch (e) {}
+  try {
+    fs.unlinkSync(t.logFile);
+  } catch {
+    // No previous tunnel log exists.
+  }
   const out = fs.openSync(t.logFile, 'w');
   const proc = spawn('/tmp/cloudflared', ['tunnel', '--url', `http://localhost:${t.port}`], {
     stdio: ['ignore', out, out]

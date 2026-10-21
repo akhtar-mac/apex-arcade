@@ -194,6 +194,15 @@ class SoundFX {
 }
 
 const sound = new SoundFX();
+let memoryAccessToken = '';
+
+if (typeof window !== 'undefined') {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => nativeFetch(input, {
+    ...init,
+    credentials: init?.credentials ?? 'include'
+  });
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // MAIN APPLICATION COMPONENT
@@ -201,7 +210,7 @@ const sound = new SoundFX();
 
 export default function MobileApp() {
   // Navigation & Auth
-  const [isLoggedIn, setIsLoggedIn] = useState(() => typeof window !== 'undefined' ? !!localStorage.getItem('apex_token') : false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [accountId, setAccountId] = useState('');
   const [otpInput, setOtpInput] = useState('');
@@ -277,12 +286,13 @@ export default function MobileApp() {
   const [pendingDepositId, setPendingDepositId] = useState('');
 
   // User Profile Data
-  const [userName, setUserName] = useState('Aarav Sharma');
-  const [userEmail, setUserEmail] = useState('aarav.sharma@example.com');
-  const [userState, setUserState] = useState('Maharashtra');
+  const [userName, setUserName] = useState('Player');
+  const [userEmail, setUserEmail] = useState('');
+  const [userState, setUserState] = useState('');
 
   // Auth Modes & Registration Form
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [registrationToken, setRegistrationToken] = useState('');
   const [regForm, setRegForm] = useState({
     fullName: '',
     phone: '',
@@ -310,6 +320,28 @@ export default function MobileApp() {
   const isAppAllowed = isCapacitorNative || isLocalHost;
   const API_BASE = import.meta.env.VITE_API_URL
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
+  const demoLoginEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const user = data?.data?.user;
+        const wallet = data?.data?.wallet;
+        if (!data?.success || !user) return;
+        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
+        if (user.id) setAccountId(user.id);
+        if (user.fullName) setUserName(user.fullName);
+        if (user.phoneNumber) setPhoneNumber(user.phoneNumber);
+        if (user.upiId) setWithdrawUpi(user.upiId);
+        if (user.email) setUserEmail(user.email);
+        if (user.state) setUserState(user.state);
+        setIsLoggedIn(true);
+        setWalletReady(true);
+      })
+      .catch(() => undefined);
+  }, [API_BASE]);
 
   // Fetch live active rotated UPI account on mount
   useEffect(() => {
@@ -341,7 +373,7 @@ export default function MobileApp() {
 
   // Hydrate user session from local SQL database on app load
   useEffect(() => {
-    const token = localStorage.getItem('apex_token');
+    const token = memoryAccessToken;
     if (token) {
       fetch(`${API_BASE}/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -400,8 +432,8 @@ export default function MobileApp() {
 
   const handleVerifyOtpClick = async () => {
     const cleanPhone = phoneNumber.replace(/\D/g, '').slice(-10);
-    if (!otpInput) {
-      showToast('Please enter the 4-digit code.');
+    if (otpInput.length !== 6) {
+      showToast('Please enter the 6-digit code.');
       return;
     }
     setIsSubmittingAuth(true);
@@ -415,11 +447,12 @@ export default function MobileApp() {
       if (data.success) {
         if (data.isNewUser) {
           showToast('OTP verified. Finish registration. New wallets start at ₹0.');
+          setRegistrationToken(data.registrationToken || '');
           setRegForm(prev => ({ ...prev, phone: cleanPhone }));
           setAuthMode('register');
         } else if (data.data) {
           const { user, wallet, accessToken } = data.data;
-          if (accessToken) localStorage.setItem('apex_token', accessToken);
+          if (accessToken) memoryAccessToken = accessToken;
           if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
           if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
           if (user?.id) setAccountId(user.id);
@@ -452,7 +485,7 @@ export default function MobileApp() {
       const data = await res.json();
       if (data.success && data.data) {
         const { user, wallet, accessToken } = data.data;
-        if (accessToken) localStorage.setItem('apex_token', accessToken);
+        if (accessToken) memoryAccessToken = accessToken;
         if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
         if (user?.id) setAccountId(user.id);
@@ -472,6 +505,31 @@ export default function MobileApp() {
       }
     } catch {
       showToast('Could not reach the login server.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleRegistrationVerificationClick = async () => {
+    if (regForm.phone.length !== 10) {
+      showToast('Enter a 10-digit mobile number.');
+      return;
+    }
+    setPhoneNumber(regForm.phone);
+    setIsSubmittingAuth(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: regForm.phone })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed to send OTP.');
+      setAuthMode('login');
+      setLoginStep('otp');
+      showToast('Verification code sent. Verify it to finish registration.');
+    } catch (error: any) {
+      showToast(error.message || 'Could not reach the login server.');
     } finally {
       setIsSubmittingAuth(false);
     }
@@ -506,13 +564,13 @@ export default function MobileApp() {
           email: regForm.email.trim() || undefined,
           payoutUpi: regForm.payoutUpi,
           ageConfirmed: regForm.ageConfirmed,
-          otp: '1234'
+          registrationToken
         })
       });
       const data = await res.json();
       if (data.success && data.data) {
         const { user, wallet, accessToken } = data.data;
-        if (accessToken) localStorage.setItem('apex_token', accessToken);
+        if (accessToken) memoryAccessToken = accessToken;
         if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
         if (user?.id) setAccountId(user.id);
@@ -539,7 +597,8 @@ export default function MobileApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('apex_token');
+    memoryAccessToken = '';
+    fetch(`${API_BASE}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => undefined);
     setIsLoggedIn(false);
     setWalletReady(false);
     setHasPaidDeposit(false);
@@ -562,7 +621,7 @@ export default function MobileApp() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    const token = localStorage.getItem('apex_token');
+    const token = memoryAccessToken;
     if (!token) return;
     fetch(`${API_BASE}/api/v1/payments/history`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
@@ -585,7 +644,7 @@ export default function MobileApp() {
 
   useEffect(() => {
     if (!isLoggedIn || activeTab === 'arena') return;
-    const token = localStorage.getItem('apex_token');
+    const token = memoryAccessToken;
     if (!token) return;
     const refreshWallet = () => {
       fetch(`${API_BASE}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -612,7 +671,8 @@ export default function MobileApp() {
     if (!isLoggedIn || activeTab !== 'arena') return;
     const socket = io(API_BASE, {
       transports: ['websocket', 'polling'],
-      auth: { token: localStorage.getItem('apex_token') || '' }
+      withCredentials: true,
+      auth: { token: memoryAccessToken || '' }
     });
     socketRef.current = socket;
 
@@ -910,7 +970,7 @@ export default function MobileApp() {
   // DEPOSIT HANDLER (1-Click Auto + Manual P2P)
   // ════════════════════════════════════════════════════════════════════════
   const authHeaders = () => {
-    const token = localStorage.getItem('apex_token');
+    const token = memoryAccessToken;
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -918,7 +978,7 @@ export default function MobileApp() {
   };
 
   const handleExecuteInstantDeposit = async () => {
-    if (!localStorage.getItem('apex_token')) {
+    if (!memoryAccessToken) {
       showToast('Log in before adding money.');
       return;
     }
@@ -958,7 +1018,7 @@ export default function MobileApp() {
   };
 
   const handleExecuteManualUtrDeposit = async () => {
-    if (!localStorage.getItem('apex_token')) {
+    if (!memoryAccessToken) {
       showToast('Log in before adding money.');
       return;
     }
@@ -1011,7 +1071,7 @@ export default function MobileApp() {
   // WITHDRAWAL HANDLER
   // ════════════════════════════════════════════════════════════════════════
   const handleExecuteWithdrawal = async () => {
-    if (!localStorage.getItem('apex_token')) {
+    if (!memoryAccessToken) {
       showToast('Log in before withdrawing.');
       return;
     }
@@ -1575,7 +1635,7 @@ export default function MobileApp() {
   };
 
   if (typeof window !== 'undefined' && !isAppAllowed) {
-    const landingApkUrl = 'https://apex-web-landing-o6u0.onrender.com/downloads/apex-arcade-debug.apk';
+    const landingUrl = 'https://apex-web-landing-o6u0.onrender.com';
     return (
       <div className="min-h-[100dvh] w-full bg-[#08090C] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-full max-w-sm bg-[#111319] border border-white/[0.08] rounded-3xl p-6 space-y-4">
@@ -1584,14 +1644,13 @@ export default function MobileApp() {
           </div>
           <h1 className="text-2xl font-black text-white">{brand.appName} is App-Only</h1>
           <p className="text-xs text-[#94A3B8] leading-relaxed">
-            To register, deposit, and play in the 14-picture arena, install the official Android app on your phone.
+            Signed Android distribution remains unavailable until the independent release gate is complete.
           </p>
           <a
-            href={landingApkUrl}
-            download="Apex-Arcade-App.apk"
+            href={landingUrl}
             className="w-full py-3.5 rounded-xl bg-[#00F59B] text-black font-black text-sm flex items-center justify-center gap-2 pressable"
           >
-            Download Official App
+            Check App Release
           </a>
           <a
             href="https://apex-web-landing-o6u0.onrender.com"
@@ -1679,22 +1738,26 @@ export default function MobileApp() {
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleShowcaseLoginClick}
-                  disabled={isSubmittingAuth}
-                  className="w-full py-3.5 rounded-xl bg-[#111319] border border-[#00F59B]/40 text-[#00F59B] font-black text-xs pressable flex items-center justify-center gap-2"
-                >
-                  Demo login · ₹1,00,000
-                </button>
-                <p className="text-[11px] text-center text-[#94A3B8]">Show account. One tap. A new player still starts at ₹0.</p>
+                {demoLoginEnabled && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleShowcaseLoginClick}
+                      disabled={isSubmittingAuth}
+                      className="w-full py-3.5 rounded-xl bg-[#111319] border border-[#00F59B]/40 text-[#00F59B] font-black text-xs pressable flex items-center justify-center gap-2"
+                    >
+                      Demo login · ₹1,00,000 simulated credits
+                    </button>
+                    <p className="text-[11px] text-center text-[#94A3B8]">Demo credits can be played but cannot be deposited or withdrawn.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4 animate-slide-up">
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-xs uppercase tracking-wider text-[#94A3B8] font-semibold">
-                      4-Digit OTP Code
+                      6-Digit OTP Code
                     </label>
                     <button onClick={() => setLoginStep('phone')} className="text-xs text-[#00F59B]">
                       Change Number
@@ -1702,15 +1765,12 @@ export default function MobileApp() {
                   </div>
                   <input
                     type="text"
-                    maxLength={4}
+                    maxLength={6}
                     value={otpInput}
                     onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Demo code: 1234"
+                    placeholder="Enter verification code"
                     className="w-full bg-[#111319] border border-white/[0.08] rounded-xl px-4 py-3.5 text-center text-2xl font-mono-numbers tracking-widest text-white outline-none focus:border-[#00F59B]"
                   />
-                  <p className="text-[11px] text-[#00F59B] text-center mt-1.5 font-medium">
-                    Demo OTP is <span className="font-mono-numbers font-bold underline">1234</span>
-                  </p>
                 </div>
 
                 <button
@@ -1815,16 +1875,16 @@ export default function MobileApp() {
 
               <button
                 disabled={!regForm.fullName || regForm.phone.length !== 10 || !regForm.ageConfirmed || isSubmittingAuth}
-                onClick={handleRegisterSubmit}
+                onClick={registrationToken ? handleRegisterSubmit : handleRegistrationVerificationClick}
                 className="w-full py-4 rounded-xl bg-[#00F59B] text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#00F59B]/20 flex items-center justify-center gap-2"
               >
                 {isSubmittingAuth ? (
                   <>
                     <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    <span>Registering Player...</span>
+                    <span>{registrationToken ? 'Registering Player...' : 'Sending verification code...'}</span>
                   </>
                 ) : (
-                  <span>Complete registration</span>
+                  <span>{registrationToken ? 'Complete registration' : 'Verify phone to continue'}</span>
                 )}
               </button>
             </div>
@@ -1850,7 +1910,7 @@ export default function MobileApp() {
               24/7 Live Support Desk
             </button>
           </div>
-          <div className="flex items-center justify-center gap-2 text-[11px] text-[#64748B]">
+          <div className="flex items-center justify-center gap-2 text-[11px] text-[#94A3B8]">
             <ShieldCheck className="w-3.5 h-3.5 text-[#00F59B]" />
             <span>18+ only. Manual UPI desk. No payment gateway.</span>
           </div>
@@ -2736,18 +2796,18 @@ export default function MobileApp() {
       )}
 
       {fundWizardOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-end justify-center p-4">
-          <div className="w-full max-w-sm bg-[#111319] border border-white/10 rounded-3xl p-5 space-y-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end justify-center p-4" onClick={() => setFundWizardOpen(false)}>
+          <button
+            type="button"
+            onClick={() => setFundWizardOpen(false)}
+            aria-label="Close insufficient funds message"
+            className="absolute top-20 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-[#181B24] border border-white/15 text-white flex items-center justify-center pressable"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="w-full max-w-sm bg-[#111319] border border-white/10 rounded-3xl p-5 space-y-3" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black text-white">This picture needs money in the wallet</h3>
-              <button
-                type="button"
-                onClick={() => setFundWizardOpen(false)}
-                aria-label="Close"
-                className="w-8 h-8 shrink-0 rounded-xl bg-[#181B24] border border-white/[0.08] text-[#94A3B8] hover:text-white flex items-center justify-center pressable"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
             <p className="text-xs text-[#94A3B8]">The stake is higher than the balance. Deposit, then come back to the arena.</p>
             <button type="button" onClick={openDeposit} className="w-full py-3 rounded-xl bg-[#00F59B] text-black font-black text-sm">Deposit</button>

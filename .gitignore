@@ -8,3 +8,6 @@ backups/
 .DS_Store
 apps/mobile-app/android/.gradle/
 apps/mobile-app/android/app/build/
+.netlify/
+playwright-report/
+test-results/

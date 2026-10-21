@@ -1,6 +1,6 @@
 #!/bin/bash
-# Builds a debug APK from the player web app. A download link is published
-# only when the file is a real APK. This does not sign a Play Store release.
+# Builds a local debug APK from the player web app.
+# Debug artifacts are never copied into the public website.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -31,10 +31,8 @@ APK="apps/mobile-app/android/app/build/outputs/apk/debug/app-debug.apk"
 BYTES=$(wc -c < "$APK" | tr -d ' ')
 SIG=$(head -c 2 "$APK")
 if [ "$BYTES" -lt 1000000 ] || [ "$SIG" != "PK" ]; then
-  echo "Refusing to publish $APK ($BYTES bytes). It is not a real APK."
+  echo "Invalid debug artifact at $APK ($BYTES bytes)."
   exit 1
 fi
-mkdir -p apps/web-landing/public/downloads
-cp "$APK" apps/web-landing/public/downloads/apex-arcade-debug.apk
-echo "Published apps/web-landing/public/downloads/apex-arcade-debug.apk ($BYTES bytes)."
-echo "Point CAPACITOR_SERVER_URL at the public origin before a phone build that should load a remote server."
+echo "Local debug APK created at $APK ($BYTES bytes). Do not publish it."
+echo "Authorized releases must use bundled assets and organization-controlled signing outside Git."

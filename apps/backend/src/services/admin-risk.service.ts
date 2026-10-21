@@ -29,7 +29,7 @@ export class AdminRiskService {
    */
   static toggleHaltPayouts(halt?: boolean): boolean {
     this.arePayoutsHalted = halt !== undefined ? halt : !this.arePayoutsHalted;
-    console.log(`[KILL SWITCH] 🚨 PAYOUT HALT STATUS: ${this.arePayoutsHalted ? 'HALTED (ALL PAYOUTS QUEUED FOR MANUAL REVIEW)' : 'ACTIVE (INSTANT DISPATCH ENABLED)'}`);
+    console.log(`[KILL SWITCH] PAYOUT REQUEST STATUS: ${this.arePayoutsHalted ? 'PAUSED' : 'OPEN FOR MANUAL DESK REVIEW'}`);
     return this.arePayoutsHalted;
   }
 
@@ -94,23 +94,6 @@ export class AdminRiskService {
       totalAmountRefunded: totalRefunded,
       message: `Successfully refunded ₹${totalRefunded.toFixed(2)} to ${refundedCount} players`
     };
-  }
-
-  /**
-   * Kill Switch 4: Force Settle Winning Card (Admin Override)
-   */
-  static forceSettleCard(roomId: string, cardId: number) {
-    if (cardId < 1 || cardId > 14) {
-      throw new Error('Card ID must be between 1 and 14');
-    }
-    const state = GameEngineService.getRoomState(roomId);
-    if (!state) {
-      throw new Error(`Room ${roomId} not found`);
-    }
-
-    state.resultCard = cardId;
-    console.log(`[KILL SWITCH] 🎯 Admin Override: Card #${cardId} forced for Round #${state.roundNumber}`);
-    return { success: true, winningCard: cardId, roundNumber: state.roundNumber };
   }
 
   /**

@@ -48,11 +48,11 @@ export default function LandingApp() {
   const [downloadModal, setDownloadModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | 'responsible' | null>(null);
-  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: "India's #1 Picture Betting", logoUrl: '' });
+  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: 'Pick a card. Win 10×.', logoUrl: '' });
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
   const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? `http://${window.location.hostname}:4000` : 'https://apex-arcade-api.onrender.com');
-  const apkUrl = '/downloads/apex-arcade-debug.apk';
+  const appDownloadUrl = (import.meta as any).env?.VITE_APP_DOWNLOAD_URL || '';
 
   useEffect(() => {
     fetch(`${apiBase}/api/v1/brand`).then(r => r.json()).then(json => {
@@ -75,7 +75,7 @@ export default function LandingApp() {
     },
     {
       q: "Is there an Android app?",
-      a: "Yes. Download and install the official Android App directly from this website to sign in, deposit, and play."
+      a: "A signed Android release will be published here only after technical, security, and independent release authorization checks are complete."
     },
     {
       q: "What are the minimum and maximum bet amounts?",
@@ -84,7 +84,7 @@ export default function LandingApp() {
   ];
 
   const steps = [
-    { num: '01', icon: '📱', title: 'Install the App', desc: 'Download and install the official Android App from this website to play.' },
+    { num: '01', icon: '📱', title: 'Install the App', desc: 'Install a signed Android release after it passes the release gate.' },
     { num: '02', icon: '💳', title: 'Pay the desk QR', desc: 'Scan the published QR, then submit the 12-digit UTR. The wallet changes after an agent matches it.' },
     { num: '03', icon: '🎴', title: 'Pick Your Card', desc: 'Choose from 14 picture symbols. The smallest bet is ₹10.' },
     { num: '04', icon: '🏆', title: 'Win 10×', desc: 'If your card wins, 10× is added to the play wallet. A cash withdrawal waits for the desk.' },
@@ -141,7 +141,7 @@ export default function LandingApp() {
               <span className="text-lg font-black tracking-tight text-white font-['Outfit']">
                 {brand.appName}
               </span>
-              <span className="hidden sm:block text-[9px] font-bold text-slate-500 uppercase tracking-widest">{brand.tagline || "India's #1 Picture Betting"}</span>
+              <span className="hidden sm:block text-[9px] font-bold text-slate-500 uppercase tracking-widest">{brand.tagline || 'Pick a card. Win 10×.'}</span>
             </div>
           </div>
 
@@ -204,7 +204,7 @@ export default function LandingApp() {
           {/* Badge */}
           <div className="float-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-bold text-[#00e5ff] mb-6 tracking-wide">
             <Sparkles className="w-3.5 h-3.5 text-[#0df59d]" />
-            INDIA'S #1 LIVE 14-PICTURE BETTING ARCADE
+            RESTRICTED-STAGE 14-PICTURE ARCADE
           </div>
 
           {/* Headline */}
@@ -297,7 +297,7 @@ export default function LandingApp() {
                 </div>
                 <span className="font-black text-xs sm:text-sm text-white">{card.name}</span>
                 <span className="text-[9px] sm:text-[11px] text-slate-400 mb-2">{card.hindi}</span>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg border shadow-sm" style={{ color: card.color, borderColor: `${card.color}40`, background: `${card.color}18` }}>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg border shadow-sm text-white" style={{ borderColor: `${card.color}80`, background: `${card.color}30` }}>
                   10.0×
                 </span>
               </div>
@@ -418,7 +418,7 @@ export default function LandingApp() {
                       </div>
                       <span className="text-xs font-semibold text-white">{m.method}</span>
                     </div>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ color: m.color, background: `${m.color}20` }}>{m.type}</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: `${m.color}55` }}>{m.type}</span>
                   </div>
                 ))}
               </div>
@@ -442,7 +442,7 @@ export default function LandingApp() {
                 onClick={() => setDownloadModal(true)}
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-sm hover:scale-[1.02] active:scale-[0.98] transition shadow-lg shadow-emerald-500/20"
               >
-                Get App & Start Playing
+                Check App Release
               </button>
             </div>
           </div>
@@ -513,8 +513,8 @@ export default function LandingApp() {
         <div className="max-w-2xl mx-auto text-center">
           <div className="p-8 sm:p-12 rounded-3xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(13,245,157,0.08), rgba(0,229,255,0.06), rgba(255,184,0,0.05))' }}>
             <div className="absolute inset-0 pointer-events-none" style={{ border: '1px solid rgba(13,245,157,0.2)', borderRadius: '1.5rem' }} />
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">Ready to Win?</h2>
-            <p className="text-slate-400 text-sm mb-8">Download and install the official App to play. New accounts start at ₹0.</p>
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">Android Release</h2>
+            <p className="text-slate-400 text-sm mb-8">The signed App will be available after release authorization. New accounts start at ₹0.</p>
             <button
               onClick={() => setDownloadModal(true)}
               className="glow-btn bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-lg px-10 py-4 rounded-2xl hover:scale-105 active:scale-95 transition shadow-xl shadow-emerald-500/25 mx-auto flex items-center gap-3"
@@ -522,7 +522,7 @@ export default function LandingApp() {
               <Download className="w-5 h-5" />
               Download App
             </button>
-            <p className="text-[11px] text-slate-500 mt-4">Official Android App download for verified players.</p>
+            <p className="text-[11px] text-slate-500 mt-4">Unsigned and debug builds are not distributed.</p>
           </div>
         </div>
       </section>
@@ -540,7 +540,7 @@ export default function LandingApp() {
                 <span className="font-black text-white text-lg font-['Outfit']">APEX<span className="text-[#0df59d]">ARCADE</span></span>
               </div>
               <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-                India's leading real-money picture betting platform. Built on enterprise PostgreSQL & Redis infrastructure.
+                A restricted-stage 14-picture arcade backed by PostgreSQL and Redis. Transactional features remain disabled until release authorization.
               </p>
             </div>
 
@@ -596,7 +596,9 @@ export default function LandingApp() {
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto mb-4">📱</div>
               <h3 className="text-2xl font-black text-white">Install {brand.appName} App</h3>
-              <p className="text-sm text-slate-400 mt-1">Install the official Android App to register, deposit, and play in the arena.</p>
+              <p className="text-sm text-slate-400 mt-1">
+                {appDownloadUrl ? 'Install the signed Android release.' : 'The Android download is disabled while release checks are incomplete.'}
+              </p>
             </div>
 
             {/* Steps */}
@@ -617,15 +619,25 @@ export default function LandingApp() {
             </div>
 
             <div className="space-y-2.5">
-              <a
-                href={apkUrl}
-                download="Apex-Arcade-App.apk"
-                onClick={() => setDownloadModal(false)}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-emerald-500/20"
-              >
-                <Download className="w-4 h-4" />
-                Download Official App
-              </a>
+              {appDownloadUrl ? (
+                <a
+                  href={appDownloadUrl}
+                  download="Apex-Arcade-App.apk"
+                  onClick={() => setDownloadModal(false)}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-emerald-500/20"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Signed App
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-3.5 rounded-2xl bg-slate-700 text-slate-300 font-black text-sm cursor-not-allowed"
+                >
+                  Release Pending
+                </button>
+              )}
             </div>
           </div>
         </div>

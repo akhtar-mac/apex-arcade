@@ -4,7 +4,6 @@ import { Router, Request, Response } from 'express';
 import { PaymentService } from '../services/payment.service.js';
 import { GameEngineService } from '../services/game-engine.service.js';
 import { DB, getPrisma } from '../db.js';
-import { TxType, TxStatus } from '@arcade/shared-types';
 import { AdminRiskService } from '../services/admin-risk.service.js';
 import { requireRole } from '../middlewares/require-role.middleware.js';
 import { ComplianceService } from '../services/compliance.service.js';
@@ -12,6 +11,7 @@ import { Ledger } from '../services/ledger.service.js';
 import { AuthService } from '../services/auth.service.js';
 import { EventService } from '../services/event.service.js';
 import { BrandService } from '../services/brand.service.js';
+import { emitAlert } from '../services/alert.service.js';
 
 export const adminRouter = Router();
 
@@ -20,6 +20,7 @@ adminRouter.use((req: Request, res: Response, next) => {
   const role = (req as any).user?.role;
   const agentPaths = req.path.startsWith('/p2p-queue') || req.path.startsWith('/withdrawals') || req.path.startsWith('/desk-log');
   if (role === 'AGENT' && !agentPaths) {
+    emitAlert('authorisation_denied', 'warning', { role: 'AGENT', path: req.path }).catch(() => {});
     return res.status(403).json({ success: false, error: 'Only an admin can do that.' });
   }
   return next();
@@ -73,25 +74,17 @@ adminRouter.get('/scale-proof', (_req: Request, res: Response) => {
   return res.json({ success: true, data });
 });
 
-adminRouter.get('/stats', (req: Request, res: Response) => {
-  const users = Array.from(DB.memory.users.values());
-  const wallets = Array.from(DB.memory.wallets.values());
-  const txs = Array.from(DB.memory.transactions.values());
-  const bets = Array.from(DB.memory.bets.values());
-
-  const totalUserBalance = wallets.reduce((acc, w) => acc + (w.balance || 0), 0);
-  const totalDeposits = txs
-    .filter(t => t.type === TxType.DEPOSIT && t.status === TxStatus.SUCCESS)
-    .reduce((acc, t) => acc + t.amount, 0);
-  const totalWithdrawals = txs
-    .filter(t => t.type === TxType.WITHDRAWAL && t.status === TxStatus.SUCCESS)
-    .reduce((acc, t) => acc + t.amount, 0);
-  const totalBetVolume = bets.reduce((acc, b) => acc + b.amount, 0);
-  const totalPayouts = bets.filter(b => b.isWin).reduce((acc, b) => acc + (b.payout || 0), 0);
-
-  const pendingP2PCount = txs.filter(t => t.type === TxType.DEPOSIT && t.status === TxStatus.PENDING).length;
-  const pendingWithdrawalCount = txs.filter(t => t.type === TxType.WITHDRAWAL && t.status === TxStatus.PENDING).length;
-
+adminRouter.get('/stats', async (_req: Request, res: Response) => {
+  const prisma = getPrisma();
+  const [totalRegisteredUsers, walletTotals, depositTotals, withdrawalTotals, betTotals, pendingP2PCount, pendingWithdrawalCount] = await Promise.all([
+    prisma.user.count({ where: { role: 'USER' } }),
+    prisma.wallet.aggregate({ _sum: { balance: true, locked: true } }),
+    prisma.transaction.aggregate({ where: { type: 'DEPOSIT', status: 'SUCCESS' }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'WITHDRAWAL', status: 'SUCCESS' }, _sum: { amount: true } }),
+    prisma.bet.aggregate({ _sum: { amount: true, payout: true } }),
+    prisma.transaction.count({ where: { type: 'DEPOSIT', status: 'PENDING' } }),
+    prisma.transaction.count({ where: { type: 'WITHDRAWAL', status: 'PENDING' } })
+  ]);
   const io = GameEngineService.getIo();
   const activePlayersCount = io?.engine?.clientsCount ?? io?.sockets?.sockets?.size ?? 0;
 
@@ -99,12 +92,12 @@ adminRouter.get('/stats', (req: Request, res: Response) => {
     success: true,
     data: {
       activePlayersCount,
-      totalRegisteredUsers: users.length,
-      totalUserEscrowBalance: totalUserBalance,
-      totalDeposits,
-      totalWithdrawals,
-      totalBetVolume,
-      totalPayouts,
+      totalRegisteredUsers,
+      totalUserEscrowBalance: Number(walletTotals._sum.balance || 0) + Number(walletTotals._sum.locked || 0),
+      totalDeposits: Number(depositTotals._sum.amount || 0),
+      totalWithdrawals: Number(withdrawalTotals._sum.amount || 0),
+      totalBetVolume: Number(betTotals._sum.amount || 0),
+      totalPayouts: Number(betTotals._sum.payout || 0),
       pendingP2PDeposits: pendingP2PCount,
       flaggedWithdrawals: pendingWithdrawalCount,
       systemHealth: 'ONLINE'
@@ -112,19 +105,20 @@ adminRouter.get('/stats', (req: Request, res: Response) => {
   });
 });
 
-adminRouter.get('/p2p-queue', (req: Request, res: Response) => {
-  const pendingDeposits = Array.from(DB.memory.transactions.values())
-    .filter(t => t.type === TxType.DEPOSIT && t.status === TxStatus.PENDING)
-    .map(t => {
-      const user = DB.memory.users.get(t.userId);
-      return {
-        ...t,
-        userPhone: user ? user.phoneNumber : 'Unknown',
-        userName: user ? (user.fullName || user.legalName || `User #${user.phoneNumber.slice(-4)}`) : 'Player',
-        legalName: user?.legalName || user?.fullName || null,
-        panNumber: user?.panNumber || null
-      };
-    });
+adminRouter.get('/p2p-queue', async (_req: Request, res: Response) => {
+  const rows = await getPrisma().transaction.findMany({
+    where: { type: 'DEPOSIT', status: 'PENDING', utrNumber: { not: null } },
+    include: { user: true },
+    orderBy: { createdAt: 'asc' },
+    take: 200
+  });
+  const pendingDeposits = rows.map(({ user, ...transaction }) => ({
+    ...transaction,
+    userPhone: user.phoneNumber,
+    userName: user.fullName || user.legalName || `User #${user.phoneNumber.slice(-4)}`,
+    legalName: user.legalName || user.fullName || null,
+    panNumber: user.panNumber || null
+  }));
   return res.json({ success: true, data: pendingDeposits });
 });
 
@@ -153,19 +147,20 @@ adminRouter.post('/p2p-queue/:id/reject', async (req: Request, res: Response) =>
   }
 });
 
-adminRouter.get('/withdrawals', (req: Request, res: Response) => {
-  const pendingWithdrawals = Array.from(DB.memory.transactions.values())
-    .filter(t => t.type === TxType.WITHDRAWAL && t.status === TxStatus.PENDING)
-    .map(t => {
-      const user = DB.memory.users.get(t.userId);
-      return {
-        ...t,
-        userPhone: user ? user.phoneNumber : 'Unknown',
-        payoutDetails: t.payoutDetails || { upiId: t.payoutUpi || user?.upiId || '' },
-        legalName: user?.legalName || user?.fullName || null,
-        panNumber: user?.panNumber || null
-      };
-    });
+adminRouter.get('/withdrawals', async (_req: Request, res: Response) => {
+  const rows = await getPrisma().transaction.findMany({
+    where: { type: 'WITHDRAWAL', status: 'PENDING' },
+    include: { user: true },
+    orderBy: { createdAt: 'asc' },
+    take: 200
+  });
+  const pendingWithdrawals = rows.map(({ user, ...transaction }) => ({
+    ...transaction,
+    userPhone: user.phoneNumber,
+    payoutDetails: { upiId: transaction.payoutUpi || user.upiId || '' },
+    legalName: user.legalName || user.fullName || null,
+    panNumber: user.panNumber || null
+  }));
   return res.json({ success: true, data: pendingWithdrawals });
 });
 
@@ -195,20 +190,22 @@ adminRouter.post('/withdrawals/:id/reject', async (req: Request, res: Response) 
   }
 });
 
-adminRouter.get('/users', (req: Request, res: Response) => {
-  const users = Array.from(DB.memory.users.values()).map(u => {
-    const wallet = DB.memory.wallets.get(u.id) || { balance: 0, locked: 0 };
-    const userBetsCount = Array.from(DB.memory.bets.values()).filter(b => b.userId === u.id).length;
-    return {
-      id: u.id,
-      phoneNumber: u.phoneNumber,
-      role: u.role,
-      balance: wallet.balance,
-      isBanned: Boolean(u.isBanned),
-      totalBets: userBetsCount,
-      createdAt: u.createdAt
-    };
+adminRouter.get('/users', async (_req: Request, res: Response) => {
+  const rows = await getPrisma().user.findMany({
+    include: { wallet: true, _count: { select: { bets: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 500
   });
+  const users = rows.map((user) => ({
+    id: user.id,
+    phoneNumber: user.phoneNumber,
+    role: user.role,
+    balance: Number(user.wallet?.balance || 0),
+    locked: Number(user.wallet?.locked || 0),
+    isBanned: user.isBanned,
+    totalBets: user._count.bets,
+    createdAt: user.createdAt
+  }));
   return res.json({ success: true, data: users });
 });
 
@@ -253,6 +250,16 @@ adminRouter.get('/risk-metrics', (req: Request, res: Response) => {
 });
 
 // ── 8. Emergency Kill Switch: Freeze Betting ──
+adminRouter.get('/kill-switches', (_req: Request, res: Response) => {
+  return res.json({
+    success: true,
+    data: {
+      bettingFrozen: AdminRiskService.isBettingFrozen,
+      payoutsHalted: AdminRiskService.arePayoutsHalted
+    }
+  });
+});
+
 adminRouter.post('/kill-switches/freeze-betting', (req: Request, res: Response) => {
   const isFrozen = AdminRiskService.toggleFreezeBetting(req.body?.freeze);
   return res.json({
@@ -267,7 +274,7 @@ adminRouter.post('/kill-switches/halt-payouts', (req: Request, res: Response) =>
   const areHalted = AdminRiskService.toggleHaltPayouts(req.body?.halt);
   return res.json({
     success: true,
-    message: areHalted ? 'Automated IMPS payouts HALTED. All withdrawals queued for manual review.' : 'Automated payouts RESUMED.',
+    message: areHalted ? 'New withdrawal requests are paused.' : 'Withdrawal requests are open for manual desk review.',
     arePayoutsHalted: areHalted
   });
 });

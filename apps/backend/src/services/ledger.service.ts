@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { GAME_RULE_VERSION } from '@arcade/shared-utils';
 import { DB, getPrisma } from '../db.js';
 import { RedisService } from './redis.service.js';
 import * as crypto from 'crypto';
@@ -235,7 +236,7 @@ export class Ledger {
       if (locked > 0 || balance >= target) return { id: rows[0].id, balance, locked };
       await tx.wallet.update({
         where: { id: rows[0].id },
-        data: { balance: target, unwagered: 0 }
+        data: { balance: target, unwagered: target }
       });
       return { id: rows[0].id, balance: target, locked };
     });
@@ -246,14 +247,14 @@ export class Ledger {
       userId,
       balance: updated.balance,
       locked: updated.locked,
-      unwagered: updated.balance >= target ? 0 : prev?.unwagered || 0,
+      unwagered: updated.balance >= target ? target : prev?.unwagered || 0,
       updatedAt: new Date()
     });
     const cached = DB.memory.users.get(userId) as any;
     if (cached?.wallet) {
       cached.wallet.balance = updated.balance;
       cached.wallet.locked = updated.locked;
-      cached.wallet.unwagered = updated.balance >= target ? 0 : cached.wallet.unwagered;
+      cached.wallet.unwagered = updated.balance >= target ? target : cached.wallet.unwagered;
     }
     return this.walletOf(userId);
   }
@@ -268,6 +269,7 @@ export class Ledger {
     upiId?: string | null;
     ageConfirmed?: boolean;
     termsVersion?: string | null;
+    isDemo?: boolean;
   }) {
     const prisma = getPrisma();
     const user = await prisma.user.create({
@@ -281,6 +283,7 @@ export class Ledger {
         state: input.state || null,
         upiId: input.upiId || null,
         ageConfirmed: !!input.ageConfirmed,
+        isDemo: !!input.isDemo,
         termsVersion: input.termsVersion || (input.ageConfirmed ? '2026-10' : null),
         wallet: { create: { balance: 0, locked: 0, unwagered: 0 } }
       },
@@ -288,6 +291,16 @@ export class Ledger {
     });
     this.cacheUser(user);
     return { user: DB.memory.users.get(user.id), wallet: this.walletOf(user.id) };
+  }
+
+  static async markAsDemo(userId: string) {
+    const user = await getPrisma().user.update({
+      where: { id: userId },
+      data: { isDemo: true },
+      include: { wallet: true }
+    });
+    this.cacheUser(user);
+    return user;
   }
 
   static async adjustBalance(userId: string, deltaBalance: number, deltaLocked: number): Promise<{
@@ -332,6 +345,79 @@ export class Ledger {
     return result;
   }
 
+  static async placeBetAtomic(input: {
+    id: string;
+    userId: string;
+    roundId: string;
+    chosenCard: number;
+    amount: number;
+    createdAt: Date;
+  }) {
+    const prisma = getPrisma();
+    const result = await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ id: string; balance: any; locked: any; unwagered: any }>>`
+        SELECT id, balance, locked, unwagered
+        FROM "Wallet" WHERE "userId" = ${input.userId} FOR UPDATE
+      `;
+      if (rows.length === 0) throw new Error('Wallet not found');
+      const balance = num(rows[0].balance);
+      if (balance < input.amount) throw new Error('Insufficient funds');
+      const newBalance = round2(balance - input.amount);
+      const unwagered = Math.max(0, round2(num(rows[0].unwagered) - input.amount));
+      await tx.wallet.update({
+        where: { id: rows[0].id },
+        data: { balance: newBalance, unwagered }
+      });
+      const bet = await tx.bet.create({
+        data: {
+          id: input.id,
+          userId: input.userId,
+          roundId: input.roundId,
+          chosenCard: input.chosenCard,
+          amount: input.amount,
+          createdAt: input.createdAt
+        }
+      });
+      const transaction = await tx.transaction.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId: input.userId,
+          type: 'BET_PLACED',
+          status: 'SUCCESS',
+          amount: input.amount,
+          gatewayName: 'GAME_LEDGER'
+        }
+      });
+      return {
+        bet,
+        transaction,
+        walletId: rows[0].id,
+        newBalance,
+        locked: num(rows[0].locked),
+        unwagered
+      };
+    });
+
+    const cachedWallet = {
+      id: result.walletId,
+      userId: input.userId,
+      balance: result.newBalance,
+      locked: result.locked,
+      unwagered: result.unwagered,
+      updatedAt: new Date()
+    };
+    DB.memory.wallets.set(input.userId, cachedWallet);
+    DB.memory.bets.set(input.id, {
+      ...input,
+      isWin: null,
+      payout: null
+    });
+    DB.memory.transactions.set(result.transaction.id, result.transaction);
+    RedisService.setWalletBalance(input.userId, result.newBalance, result.locked)
+      .catch((error) => console.warn('[REDIS] Wallet cache update failed after committed bet:', error.message));
+    return { newBalance: result.newBalance, unwagered: result.unwagered };
+  }
+
   static async openRound(round: {
     id: string;
     roomId: string;
@@ -352,7 +438,8 @@ export class Ledger {
           startTime: round.startTime,
           endTime: round.endTime,
           resultCard: null,
-          multiplier: round.multiplier ?? 10
+          multiplier: round.multiplier ?? 10,
+          ruleVersion: GAME_RULE_VERSION
         },
         update: {}
       });
@@ -391,7 +478,8 @@ export class Ledger {
         houseProfit: round.houseProfit,
         profitMargin: round.profitMargin,
         startTime: round.startTime,
-        endTime: round.endTime
+        endTime: round.endTime,
+        ruleVersion: GAME_RULE_VERSION
       },
       update: {
         status: 'COMPLETED',
@@ -399,7 +487,8 @@ export class Ledger {
         totalPool: round.totalPool,
         houseProfit: round.houseProfit,
         profitMargin: round.profitMargin,
-        endTime: round.endTime
+        endTime: round.endTime,
+        ruleVersion: GAME_RULE_VERSION
       }
     });
   }

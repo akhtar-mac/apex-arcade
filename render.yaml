@@ -12,29 +12,39 @@ services:
     plan: free
     region: oregon
     maxmemoryPolicy: noeviction
-    ipAllowList:
-      - source: 0.0.0.0/0
-        description: everywhere
+    ipAllowList: []
 
   - type: web
     name: apex-arcade-api
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install --include=dev && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
-    startCommand: npx --workspace=apps/backend prisma db push && node apps/backend/dist/server.js
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
+    preDeployCommand: npx prisma migrate deploy --schema apps/backend/prisma/schema.prisma
+    startCommand: node apps/backend/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
         value: "22.14.0"
       - key: NODE_ENV
+        value: production
+      - key: DEPLOY_ENV
         value: staging
       - key: ALLOW_DEMO_OTP
-        value: "true"
+        value: "false"
+      - key: ENABLE_DEMO_LOGIN
+        value: "false"
+      - key: ENABLE_REGULATED_FEATURES
+        value: "false"
       - key: SMS_PROVIDER
-        value: DEMO
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
       - key: CORS_ORIGINS
-        value: https://*.onrender.com,https://apex-web-landing-o6u0.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin-49qp.onrender.com,https://apex-p2p-panel.onrender.com
+        value: https://apex-web-landing-o6u0.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin-49qp.onrender.com,https://apex-p2p-panel.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: apex-arcade-db
@@ -46,21 +56,16 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      - key: JWT_REFRESH_SECRET
-        generateValue: true
       - key: ADMIN_PHONE
-        value: "9999999999"
-      - key: ADMIN_PASSWORD
         sync: false
-      - key: AGENT_PHONE
-        value: "8888888888"
-      - key: AGENT_PASSWORD
+      - key: ADMIN_PASSWORD
         sync: false
 
   - type: web
     name: apex-web-landing
     runtime: static
-    buildCommand: npm install --include=dev && npm --workspace=apps/web-landing run build
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm --workspace=apps/web-landing run build
     staticPublishPath: apps/web-landing/dist
     routes:
       - type: rewrite
@@ -77,7 +82,8 @@ services:
   - type: web
     name: apex-mobile-app
     runtime: static
-    buildCommand: npm install --include=dev && npm --workspace=apps/mobile-app run build
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm --workspace=apps/mobile-app run build
     staticPublishPath: apps/mobile-app/dist
     routes:
       - type: rewrite
@@ -88,11 +94,14 @@ services:
         value: "22.14.0"
       - key: VITE_API_URL
         value: https://apex-arcade-api.onrender.com
+      - key: VITE_ENABLE_DEMO_LOGIN
+        value: "false"
 
   - type: web
     name: apex-web-admin
     runtime: static
-    buildCommand: npm install --include=dev && npm --workspace=apps/web-admin run build
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm --workspace=apps/web-admin run build
     staticPublishPath: apps/web-admin/dist
     routes:
       - type: rewrite
@@ -107,7 +116,8 @@ services:
   - type: web
     name: apex-p2p-panel
     runtime: static
-    buildCommand: npm install --include=dev && npm --workspace=apps/p2p-panel run build
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm --workspace=apps/p2p-panel run build
     staticPublishPath: apps/p2p-panel/dist
     routes:
       - type: rewrite

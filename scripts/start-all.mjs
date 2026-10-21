@@ -66,7 +66,9 @@ const cleanup = () => {
   for (const child of children) {
     try {
       child.kill('SIGTERM');
-    } catch (e) {}
+    } catch {
+      // The child may already have exited.
+    }
   }
   process.exit(0);
 };

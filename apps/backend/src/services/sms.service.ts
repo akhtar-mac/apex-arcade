@@ -57,7 +57,7 @@ export class SmsService {
 
     // 3. No SMS key. Development can use ALLOW_DEMO_OTP. Production cannot invent a code.
     if (!Config.isProduction && Config.allowDemoOtp) {
-      console.log(`[SMS] Dev OTP for +91 ${cleanPhone} is ${otp}. It is not returned by the API.`);
+      console.log(`[SMS] Development OTP stored for masked phone ending ${cleanPhone.slice(-2)}.`);
       return { success: true, provider: 'DEV', message: 'OTP stored for development' };
     }
 

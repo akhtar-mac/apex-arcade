@@ -15,85 +15,17 @@ export interface PayoutDetails {
 
 export class PayoutService {
   /**
-   * Dispatches instant Bank IMPS / UPI payout through live Banking / Aggregator API
-   * (Cashfree Payouts / Decentro IMPS / Corporate Bank API)
-   */
-  static async dispatchBankImps(amount: number, details: PayoutDetails): Promise<{
-    success: boolean;
-    utrNumber?: string;
-    error?: string;
-  }> {
-    // Bank routing verification
-    if (!details.upiId && (!details.bankAccount || !details.ifscCode)) {
-      return { success: false, error: 'Valid UPI ID or Bank Account + IFSC is required for IMPS dispatch' };
-    }
-
-    console.log(`[BANK IMPS] 🚀 Dispatching ₹${amount.toFixed(2)} via automated IMPS rail to ${details.upiId || details.bankAccount}...`);
-
-    // 1. Live Cashfree Payouts Integration
-    if (Config.paymentGatewayProvider === 'CASHFREE' && Config.cashfreeAppId && Config.cashfreeSecretKey) {
-      try {
-        const baseUrl = Config.cashfreeEnv === 'PROD'
-          ? 'https://payout-api.cashfree.com/payout/v1'
-          : 'https://payout-gamma.cashfree.com/payout/v1';
-
-        const authRes = await fetch(`${baseUrl}/authorize`, {
-          method: 'POST',
-          headers: {
-            'X-Client-Id': Config.cashfreeAppId,
-            'X-Client-Secret': Config.cashfreeSecretKey
-          }
-        });
-        const authData: any = await authRes.json();
-        if (authData.status === 'SUCCESS' && authData.data?.token) {
-          const token = authData.data.token;
-          const transferRes = await fetch(`${baseUrl}/requestTransfer`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              transferId: `payout_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`,
-              amount: amount.toFixed(2),
-              transferMode: details.upiId ? 'upi' : 'imps',
-              vpa: details.upiId || undefined,
-              beneId: details.bankAccount || undefined,
-              remarks: 'Apex Arcade Instant Payout'
-            })
-          });
-          const transferData: any = await transferRes.json();
-          if (transferData.status === 'SUCCESS') {
-            const utr = transferData.data?.utr || `CF${Date.now()}`;
-            console.log(`[CASHFREE PAYOUT] ✅ Transfer success! UTR: ${utr}`);
-            return { success: true, utrNumber: utr };
-          }
-        }
-      } catch (err: any) {
-        console.error('[CASHFREE PAYOUT] ⚠️ Live gateway error, falling back to instant sandbox clearance:', err.message);
-      }
-    }
-
-    // 2. High-Reliability Automated Banking Simulator (Sandbox / Dev)
-    const isBankAvailable = true;
-    if (isBankAvailable) {
-      const bankUtr = `IMPS${Date.now().toString().slice(-6)}${Math.floor(100000 + Math.random() * 900000)}`;
-      console.log(`[BANK IMPS] ✅ Bank Clearance Confirmed! Bank UTR: ${bankUtr}`);
-      return { success: true, utrNumber: bankUtr };
-    } else {
-      return { success: false, error: 'Bank IMPS gateway temporarily unavailable. Queued for retry.' };
-    }
-  }
-
-  /**
-   * End-to-End Automated Withdrawal Execution with:
+   * Manual P2P withdrawal request with:
    * 1. 1.0x Turnover Wagering Requirement check
    * 2. Indian Section 194BA 30% TDS calculation
    * 3. Atomic wallet balance deduction (<1ms)
-   * 4. Instant automated IMPS dispatch (< ₹2,000) or Admin Security Review (≥ ₹2,000)
-   * 5. Automatic atomic refund rollback if bank transfer fails
+   * 4. A pending desk item that requires the actual payout UTR
    */
   static async requestWithdrawal(userId: string, requestedAmount: number, details: PayoutDetails) {
+    const { AdminRiskService } = await import('./admin-risk.service.js');
+    if (AdminRiskService.arePayoutsHalted) {
+      throw new Error('New withdrawal requests are temporarily paused.');
+    }
     if (requestedAmount < Config.minWithdrawal) {
       throw new Error(`Minimum withdrawal amount is ₹${Config.minWithdrawal}`);
     }
@@ -158,6 +90,9 @@ export class PayoutService {
     }
 
     const prisma = DB.getPrisma();
+    const pending = await prisma.transaction.findUnique({ where: { id: txId } });
+    if (!pending || pending.type !== 'WITHDRAWAL') throw new Error('Withdrawal transaction not found');
+    const tdsCalc = await TdsService.calculateTdsOnWithdrawal(pending.userId, Number(pending.amount));
     let approved: { userId: string; amount: number; newLocked: number };
     try {
       approved = await prisma.$transaction(async (db) => {
@@ -180,6 +115,20 @@ export class PayoutService {
           where: { id: txId },
           data: { status: 'SUCCESS', approvedBy: adminId, approvedAt: new Date(), utrNumber: manualUtr }
         });
+        if (tdsCalc.isTdsApplicable) {
+          await db.tdsRecord.create({
+            data: {
+              id: crypto.randomUUID(),
+              userId: row.userId,
+              withdrawalTxId: txId,
+              grossWithdrawal: Number(row.amount),
+              netWinnings: tdsCalc.netWinnings,
+              tdsAmount: tdsCalc.tdsAmount,
+              netDispatched: tdsCalc.netPayable,
+              financialYear: tdsCalc.financialYear
+            }
+          });
+        }
         return { userId: row.userId, amount: Number(row.amount), newLocked: locked };
       });
     } catch (err: any) {
@@ -198,19 +147,6 @@ export class PayoutService {
     DB.memory.transactions.set(txId, tx);
     const wallet = DB.memory.wallets.get(approved.userId);
     if (wallet) wallet.locked = approved.newLocked;
-
-    const tdsCalc = await TdsService.calculateTdsOnWithdrawal(approved.userId, approved.amount);
-    if (tdsCalc.isTdsApplicable) {
-      TdsService.recordTdsDeduction({
-        userId: approved.userId,
-        withdrawalTxId: txId,
-        grossWithdrawal: approved.amount,
-        netWinnings: tdsCalc.netWinnings,
-        tdsAmount: tdsCalc.tdsAmount,
-        netDispatched: tdsCalc.netPayable,
-        financialYear: tdsCalc.financialYear
-      }).catch(() => {});
-    }
 
     console.log(`[P2P ADMIN] Admin ${adminId} marked withdrawal ₹${approved.amount} paid with UTR ${manualUtr}`);
     return { transaction: tx, utrNumber: manualUtr };

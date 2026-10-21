@@ -18,6 +18,9 @@ export class ComplianceService {
 
   static async assertDepositAllowed(userId: string, amount: number) {
     const user = await this.assertCanUseAccount(userId);
+    if (user.isDemo) {
+      throw new Error('Demo accounts cannot create deposits.');
+    }
     if (!user.ageConfirmed) {
       throw new Error('Confirm you are 18 or older before adding money.');
     }
@@ -43,6 +46,9 @@ export class ComplianceService {
 
   static async assertWithdrawalAllowed(userId: string, amount: number) {
     const user = await this.assertCanUseAccount(userId);
+    if (user.isDemo) {
+      throw new Error('Demo credits cannot be withdrawn.');
+    }
     if (amount >= LARGE_WITHDRAWAL && (!user.panNumber || !(user.legalName || user.fullName))) {
       throw new Error('Add your PAN and legal name before a withdrawal of ₹10,000 or more. An agent will read them before paying.');
     }

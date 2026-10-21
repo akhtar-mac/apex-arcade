@@ -37,20 +37,33 @@ export class TdsService {
    */
   static async calculateTdsOnWithdrawal(userId: string, requestedAmount: number): Promise<TdsCalculationResult> {
     const fy = this.getCurrentFinancialYear();
-    
-    // 1. Calculate Total Deposits in FY
-    let totalDeposits = 0;
-    let totalPastWithdrawals = 0;
-
-    for (const tx of DB.memory.transactions.values()) {
-      if (tx.userId === userId && tx.status === 'SUCCESS') {
-        if (tx.type === 'DEPOSIT') {
-          totalDeposits += tx.amount;
-        } else if (tx.type === 'WITHDRAWAL') {
-          totalPastWithdrawals += tx.amount;
-        }
-      }
-    }
+    const startYear = Number(fy.split('-')[0]);
+    const from = new Date(Date.UTC(startYear, 3, 1));
+    const to = new Date(Date.UTC(startYear + 1, 3, 1));
+    const prisma = DB.getPrisma();
+    const [deposits, withdrawals] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: 'DEPOSIT',
+          status: 'SUCCESS',
+          createdAt: { gte: from, lt: to },
+          NOT: { gatewayName: 'FIRST_DEPOSIT_BONUS' }
+        },
+        _sum: { amount: true }
+      }),
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: 'WITHDRAWAL',
+          status: 'SUCCESS',
+          createdAt: { gte: from, lt: to }
+        },
+        _sum: { amount: true }
+      })
+    ]);
+    const totalDeposits = Number(deposits._sum.amount || 0);
+    const totalPastWithdrawals = Number(withdrawals._sum.amount || 0);
 
     // Include current withdrawal in cumulative withdrawal calculation
     const cumulativeWithdrawals = totalPastWithdrawals + requestedAmount;
@@ -99,23 +112,21 @@ export class TdsService {
 
     console.log(`[TDS COMPLIANCE] 📜 Deducted ₹${data.tdsAmount} (30% TDS) on Net Winnings ₹${data.netWinnings} for User ${data.userId} (FY ${data.financialYear})`);
 
-    try {
-      const prisma = DB.getPrisma();
-      await prisma.tdsRecord.create({
-        data: {
-          id,
-          userId: data.userId,
-          withdrawalTxId: data.withdrawalTxId,
-          grossWithdrawal: data.grossWithdrawal,
-          netWinnings: data.netWinnings,
-          tdsAmount: data.tdsAmount,
-          netDispatched: data.netDispatched,
-          financialYear: data.financialYear
-        }
-      });
-    } catch (err: any) {
-      console.warn('[TDS] Database persist notice:', err.message);
-    }
+    const prisma = DB.getPrisma();
+    await prisma.tdsRecord.upsert({
+      where: { withdrawalTxId: data.withdrawalTxId },
+      create: {
+        id,
+        userId: data.userId,
+        withdrawalTxId: data.withdrawalTxId,
+        grossWithdrawal: data.grossWithdrawal,
+        netWinnings: data.netWinnings,
+        tdsAmount: data.tdsAmount,
+        netDispatched: data.netDispatched,
+        financialYear: data.financialYear
+      },
+      update: {}
+    });
 
     return record;
   }
@@ -128,26 +139,24 @@ export class TdsService {
     let totalTdsDeducted = 0;
     const records = [];
 
-    try {
-      const prisma = DB.getPrisma();
-      const dbRecords = await prisma.tdsRecord.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' }
+    const prisma = DB.getPrisma();
+    const dbRecords = await prisma.tdsRecord.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    for (const r of dbRecords) {
+      totalTdsDeducted += Number(r.tdsAmount);
+      records.push({
+        id: r.id,
+        withdrawalTxId: r.withdrawalTxId,
+        grossWithdrawal: Number(r.grossWithdrawal),
+        netWinnings: Number(r.netWinnings),
+        tdsAmount: Number(r.tdsAmount),
+        netDispatched: Number(r.netDispatched),
+        financialYear: r.financialYear,
+        createdAt: r.createdAt
       });
-      for (const r of dbRecords) {
-        totalTdsDeducted += Number(r.tdsAmount);
-        records.push({
-          id: r.id,
-          withdrawalTxId: r.withdrawalTxId,
-          grossWithdrawal: Number(r.grossWithdrawal),
-          netWinnings: Number(r.netWinnings),
-          tdsAmount: Number(r.tdsAmount),
-          netDispatched: Number(r.netDispatched),
-          financialYear: r.financialYear,
-          createdAt: r.createdAt
-        });
-      }
-    } catch {}
+    }
 
     return {
       financialYear: fy,

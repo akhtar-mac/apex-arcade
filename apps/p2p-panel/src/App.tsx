@@ -35,6 +35,7 @@ interface DepositItem {
   time: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   ageSeconds: number;
+  screenshot?: string;
 }
 
 interface WithdrawalItem {
@@ -114,10 +115,20 @@ export default function P2PApp() {
   const [newQr, setNewQr] = useState('');
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [staffToken, setStaffToken] = useState(() => localStorage.getItem('apex_agent_token') || '');
-  const [loginPhone, setLoginPhone] = useState('8888888888');
+  const [staffToken, setStaffToken] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const role = data?.data?.user?.role;
+        if (data?.success && (role === 'ADMIN' || role === 'AGENT')) setStaffToken('cookie-session');
+      })
+      .catch(() => undefined);
+  }, [API_BASE]);
 
   // ── Fetch live queues from backend ──
   const fetchLiveQueues = useCallback(async () => {
@@ -138,7 +149,8 @@ export default function P2PApp() {
           utrNumber: d.utrNumber || 'N/A',
           time: new Date(d.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           status: d.status === 'SUCCESS' ? 'APPROVED' : d.status === 'REJECTED' ? 'REJECTED' : 'PENDING',
-          ageSeconds: Math.max(0, Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 1000))
+          ageSeconds: Math.max(0, Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 1000)),
+          screenshot: d.screenshot || undefined
         }));
         setDeposits(liveItems);
         setSelectedDeposit(current => liveItems.find(item => item.id === current?.id) || liveItems[0] || null);
@@ -176,8 +188,8 @@ export default function P2PApp() {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes('/api/')) {
         const headers = new Headers(init?.headers || (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined));
-        if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${staffToken}`);
-        return originalFetch(input, { ...init, headers });
+        if (staffToken !== 'cookie-session' && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${staffToken}`);
+        return originalFetch(input, { ...init, headers, credentials: 'include' });
       }
       return originalFetch(input, init);
     };
@@ -252,7 +264,10 @@ export default function P2PApp() {
       method: 'POST'
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.success) return;
+    if (!res.ok || !data?.success) {
+      window.alert(data?.error || 'The deposit was not approved. No wallet change was made.');
+      return;
+    }
 
     const nextList = deposits.filter(d => d.id !== id);
     setDeposits(nextList);
@@ -276,7 +291,10 @@ export default function P2PApp() {
       body: JSON.stringify({ reason: 'Invalid UTR reference' })
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.success) return;
+    if (!res.ok || !data?.success) {
+      window.alert(data?.error || 'The deposit was not rejected.');
+      return;
+    }
 
     const nextList = deposits.filter(d => d.id !== id);
     setDeposits(nextList);
@@ -330,6 +348,7 @@ export default function P2PApp() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/staff-login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: loginPhone, password: loginPassword })
       });
@@ -339,7 +358,6 @@ export default function P2PApp() {
         setLoginError(data.error || 'Desk login failed.');
         return;
       }
-      localStorage.setItem('apex_agent_token', data.data.accessToken);
       setStaffToken(data.data.accessToken);
       const user = data.data.user;
       setAgentStats(prev => ({
@@ -555,8 +573,18 @@ export default function P2PApp() {
                   <div className="mb-4">
                     <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide block mb-2">Payment Proof Screenshot</span>
                     <div className="h-40 rounded-2xl bg-black/40 border border-dashed border-white/15 flex flex-col items-center justify-center gap-2 px-4 text-center">
-                      <span className="text-xs font-bold text-slate-300">No payment screenshot was uploaded.</span>
-                      <span className="text-[10px] text-slate-500">Match the 12-digit UTR in your bank app before you credit the wallet.</span>
+                      {selectedDeposit.screenshot ? (
+                        <img
+                          src={selectedDeposit.screenshot}
+                          alt="Player-uploaded payment proof"
+                          className="max-h-36 max-w-full rounded-xl object-contain"
+                        />
+                      ) : (
+                        <>
+                          <span className="text-xs font-bold text-slate-300">No payment screenshot was uploaded.</span>
+                          <span className="text-[10px] text-slate-500">Match the 12-digit UTR in your bank app before you credit the wallet.</span>
+                        </>
+                      )}
                     </div>
                   </div>
 

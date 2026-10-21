@@ -1,10 +1,17 @@
 import { Redis } from 'ioredis';
 import { Config } from '../config.js';
+import { emitAlert } from './alert.service.js';
 
 let mainClient: Redis | null = null;
 let pubClient: Redis | null = null;
 let subClient: Redis | null = null;
 let isRedisConnected = false;
+let redisWasUnavailable = false;
+
+/** Keep retrying with a capped delay so a restarted Redis is picked up without restarting the API. */
+export function redisRetryDelayMs(times: number): number {
+  return Math.min(250 * Math.max(1, times), 2000);
+}
 
 // Lua scripts definition for atomic sub-millisecond wallet operations
 const DEDUCT_LUA = `
@@ -50,8 +57,7 @@ export class RedisService {
         connectTimeout: 500,
         lazyConnect: false,
         retryStrategy(times) {
-          if (times > 1) return null;
-          return 500;
+          return redisRetryDelayMs(times);
         }
       });
 
@@ -62,18 +68,27 @@ export class RedisService {
 
       mainClient.on('ready', () => {
         isRedisConnected = true;
+        if (redisWasUnavailable) {
+          redisWasUnavailable = false;
+          emitAlert('redis_recovered', 'info').catch(() => {});
+        }
       });
 
       mainClient.on('close', () => {
         isRedisConnected = false;
+        if (!redisWasUnavailable) {
+          redisWasUnavailable = true;
+          emitAlert('redis_unavailable', 'critical').catch(() => {});
+        }
       });
 
       mainClient.on('end', () => {
         isRedisConnected = false;
       });
 
-      mainClient.on('error', (err) => {
+      mainClient.on('error', (err: Error & { code?: string }) => {
         isRedisConnected = false;
+        console.warn(JSON.stringify({ event: 'redis_error', code: err.code || 'unknown' }));
       });
     }
     return mainClient;
@@ -110,20 +125,14 @@ export class RedisService {
     if (!isRedisConnected) {
       throw new Error('Redis offline - using in-memory atomic fallback');
     }
-    try {
-      const redis = this.getClient();
-      const walletKey = `user:${userId}:wallet`;
-      const res = await redis.eval(DEDUCT_LUA, 1, walletKey, amount.toString(), Date.now().toString()) as [number, string, string];
-      
-      const [status, code, balanceStr] = res;
-      if (status === 1) {
-        return { success: true, newBalance: parseFloat(balanceStr) };
-      } else {
-        return { success: false, newBalance: parseFloat(balanceStr || '0'), error: code };
-      }
-    } catch (err: any) {
-      throw err;
+    const redis = this.getClient();
+    const walletKey = `user:${userId}:wallet`;
+    const res = await redis.eval(DEDUCT_LUA, 1, walletKey, amount.toString(), Date.now().toString()) as [number, string, string];
+    const [status, code, balanceStr] = res;
+    if (status === 1) {
+      return { success: true, newBalance: parseFloat(balanceStr) };
     }
+    return { success: false, newBalance: parseFloat(balanceStr || '0'), error: code };
   }
 
   /**
@@ -133,16 +142,11 @@ export class RedisService {
     if (!isRedisConnected) {
       throw new Error('Redis offline - using in-memory atomic fallback');
     }
-    try {
-      const redis = this.getClient();
-      const walletKey = `user:${userId}:wallet`;
-      const res = await redis.eval(CREDIT_LUA, 1, walletKey, amount.toString(), Date.now().toString()) as [number, string, string];
-      
-      const [status, , balanceStr] = res;
-      return { success: status === 1, newBalance: parseFloat(balanceStr) };
-    } catch (err: any) {
-      throw err;
-    }
+    const redis = this.getClient();
+    const walletKey = `user:${userId}:wallet`;
+    const res = await redis.eval(CREDIT_LUA, 1, walletKey, amount.toString(), Date.now().toString()) as [number, string, string];
+    const [status, , balanceStr] = res;
+    return { success: status === 1, newBalance: parseFloat(balanceStr) };
   }
 
   /**

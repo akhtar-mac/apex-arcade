@@ -137,14 +137,23 @@ export default function AdminApp() {
 
   // Toast System
   const [adminToast, setAdminToast] = useState<string | null>(null);
-  const [staffToken, setStaffToken] = useState(() => localStorage.getItem('apex_admin_token') || '');
-  const [loginPhone, setLoginPhone] = useState('9999999999');
+  const [staffToken, setStaffToken] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const showToast = (msg: string) => {
     setAdminToast(msg);
     setTimeout(() => setAdminToast(null), 3200);
   };
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (data?.success && data.data?.user?.role === 'ADMIN') setStaffToken('cookie-session');
+      })
+      .catch(() => undefined);
+  }, [API_BASE]);
 
   // Emergency Kill Switches & Risk Ops State
   const [bettingFrozen, setBettingFrozen] = useState(false);
@@ -201,8 +210,8 @@ export default function AdminApp() {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes('/api/')) {
         const headers = new Headers(init?.headers || (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined));
-        if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${staffToken}`);
-        return originalFetch(input, { ...init, headers });
+        if (staffToken !== 'cookie-session' && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${staffToken}`);
+        return originalFetch(input, { ...init, headers, credentials: 'include' });
       }
       return originalFetch(input, init);
     };
@@ -328,14 +337,20 @@ export default function AdminApp() {
   const handleToggleFreezeBetting = async () => {
     const nextVal = !bettingFrozen;
     try {
-      await fetch(`${API_BASE}/api/v1/admin/kill-switches/freeze-betting`, {
+      const res = await fetch(`${API_BASE}/api/v1/admin/kill-switches/freeze-betting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ freeze: nextVal })
       });
-    } catch {}
-    setBettingFrozen(nextVal);
-    showToast(nextVal ? '🚨 EMERGENCY: Betting FROZEN across all rooms!' : '✅ Betting resumed across all rooms.');
+      if (!res.ok) {
+        showToast('The betting pause was not saved.');
+        return;
+      }
+      setBettingFrozen(nextVal);
+      showToast(nextVal ? 'Betting is frozen across all rooms.' : 'Betting resumed across all rooms.');
+    } catch {
+      showToast('Could not reach the API.');
+    }
   };
 
   const handleToggleHaltPayouts = async () => {
@@ -383,8 +398,7 @@ export default function AdminApp() {
       fetchUpiAccounts();
       showToast('Daily collected volume reset to ₹0.');
     } catch {
-      setUpiList(list => list.map(a => a.id === id ? { ...a, currentCollected: 0, utilizationPercent: 0, remainingCapacity: a.dailyLimit, status: 'ACTIVE' } : a));
-      showToast('Daily volume reset to ₹0.');
+      showToast('Could not reset the daily volume.');
     }
   };
 
@@ -394,7 +408,7 @@ export default function AdminApp() {
       fetchUpiAccounts();
       showToast('Account status updated.');
     } catch {
-      setUpiList(list => list.map(a => a.id === id ? { ...a, isActive: !a.isActive, status: a.isActive ? 'PAUSED' : 'ACTIVE' } : a));
+      showToast('Could not update the account status.');
     }
   };
 
@@ -437,27 +451,38 @@ export default function AdminApp() {
   const filteredPlayers = players.filter(p => p.phone.includes(playerSearch));
 
   // Payment Queue Actions (Approving deposit verifies player!)
-  const handleResolvePayment = (id: string, status: 'APPROVED' | 'REJECTED') => {
-    let approvedPhone = '';
-    setPayments(list => list.map(p => {
-      if (p.id === id) {
-        approvedPhone = p.phone;
-        return { ...p, status };
+  const handleResolvePayment = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    const payment = payments.find((item) => item.id === id);
+    if (!payment) return;
+    let body: Record<string, string> = {};
+    if (payment.type === 'WITHDRAW' && status === 'APPROVED') {
+      const payoutUtr = window.prompt('Enter the 12-digit UTR from the payout sent to the player:') || '';
+      if (!/^\d{12}$/.test(payoutUtr)) {
+        showToast('A valid 12-digit payout UTR is required.');
+        return;
       }
-      return p;
-    }));
-
-    if (status === 'APPROVED') {
-      // Award Verified Depositor Badge to Player
-      setPlayers(list => list.map(p => {
-        if (p.phone === approvedPhone) {
-          return { ...p, isVerifiedDepositor: true };
-        }
-        return p;
-      }));
-      showToast(`Deposit approved! Player ${approvedPhone} awarded VERIFIED DEPOSITOR badge.`);
-    } else {
-      showToast(`Payment ${id} rejected.`);
+      body = { payoutUtr };
+    } else if (status === 'REJECTED') {
+      const reason = window.prompt('Reason for rejection:') || 'Rejected by admin';
+      body = { reason };
+    }
+    const queue = payment.type === 'WITHDRAW' ? 'withdrawals' : 'p2p-queue';
+    const action = status === 'APPROVED' ? 'approve' : 'reject';
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/${queue}/${id}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) {
+        showToast(data?.error || 'The ledger action failed.');
+        return;
+      }
+      setPayments((list) => list.filter((item) => item.id !== id));
+      showToast(status === 'APPROVED' ? 'Ledger action completed.' : 'Payment rejected.');
+    } catch {
+      showToast('Could not reach the API. No ledger change was made.');
     }
   };
 
@@ -472,6 +497,7 @@ export default function AdminApp() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/staff-login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: loginPhone, password: loginPassword })
       });
@@ -480,7 +506,6 @@ export default function AdminApp() {
         setLoginError(data.error || 'Admin login failed.');
         return;
       }
-      localStorage.setItem('apex_admin_token', data.data.accessToken);
       setStaffToken(data.data.accessToken);
     } catch {
       setLoginError('Could not reach the API.');

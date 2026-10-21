@@ -7,14 +7,18 @@ import { AuthService } from './services/auth.service.js';
 import { RedisService } from './services/redis.service.js';
 import { WalletService } from './services/wallet.service.js';
 import { PlaceBetSchema } from '@arcade/shared-types';
+import { readCookie, SESSION_COOKIE } from './services/session-cookie.js';
 
-function activeUserId(socket: Socket, currentUserId: string) {
-  if (currentUserId !== 'guest' && AuthService.isSessionDenied(currentUserId)) {
+async function activeUserId(socket: Socket, currentUserId: string) {
+  if (currentUserId !== 'guest' && await AuthService.isSessionDenied(currentUserId)) {
     socket.leave(`user:${currentUserId}`);
     return 'guest';
   }
   return currentUserId;
 }
+
+const userConnectionCounts = new Map<string, number>();
+let activeConnections = 0;
 
 export function setupSocketServer(httpServer: HttpServer) {
   RedisService.getClient();
@@ -24,7 +28,8 @@ export function setupSocketServer(httpServer: HttpServer) {
         if (isAllowedOrigin(origin)) return callback(null, true);
         return callback(null, false);
       },
-      methods: ['GET', 'POST']
+      methods: ['GET', 'POST'],
+      credentials: true
     },
     transports: ['websocket', 'polling'],
     pingInterval: 10000,
@@ -48,14 +53,36 @@ export function setupSocketServer(httpServer: HttpServer) {
   // Attach io to GameEngine
   GameEngineService.setSocketIo(io);
 
-  io.on('connection', (socket: Socket) => {
-    // Identity comes only from a verified token. A query user id is ignored.
-    let currentUserId = 'guest';
-    const token = socket.handshake.auth?.token;
-    if (typeof token === 'string' && token) {
-      const payload = AuthService.verifyToken(token);
-      if (payload) currentUserId = payload.userId;
+  io.use(async (socket, next) => {
+    const headerToken = socket.handshake.auth?.token;
+    const cookieToken = readCookie({ headers: { cookie: socket.handshake.headers.cookie } } as any, SESSION_COOKIE);
+    const token = typeof headerToken === 'string' && headerToken ? headerToken : cookieToken;
+    if (token) {
+      const payload = await AuthService.verifyToken(token);
+      if (payload) socket.data.userId = payload.userId;
     }
+    next();
+  });
+
+  io.on('connection', (socket: Socket) => {
+    let currentUserId = typeof socket.data.userId === 'string' ? socket.data.userId : 'guest';
+    if (activeConnections >= Config.socketMaxConnections) {
+      socket.emit('connect:error', { error: 'Realtime service is at capacity.' });
+      socket.disconnect(true);
+      return;
+    }
+    if (currentUserId !== 'guest') {
+      const count = userConnectionCounts.get(currentUserId) || 0;
+      if (count >= Config.socketMaxConnectionsPerUser) {
+        socket.emit('connect:error', { error: 'Too many active sessions for this account.' });
+        socket.disconnect(true);
+        return;
+      }
+      userConnectionCounts.set(currentUserId, count + 1);
+    }
+    activeConnections += 1;
+    let betWindowStartedAt = Date.now();
+    let betsInWindow = 0;
 
     // Join personal user room for targeted atomic wallet & win updates
     if (currentUserId !== 'guest') {
@@ -64,9 +91,10 @@ export function setupSocketServer(httpServer: HttpServer) {
 
     // Join game room (e.g. 'room-tier-10')
     socket.on('join:room', (roomId: string) => {
-      socket.join(roomId);
+      if (typeof roomId !== 'string' || roomId.startsWith('user:')) return;
       const state = GameEngineService.getRoomState(roomId);
       if (state) {
+        socket.join(roomId);
         socket.emit('round:tick', {
           roomId: state.roomId,
           roundId: state.currentRoundId,
@@ -82,9 +110,9 @@ export function setupSocketServer(httpServer: HttpServer) {
     });
 
     // Reconnection State Recovery Protocol (Critical for Indian 4G/3G mobile networks)
-    socket.on('round:sync', async (payload: { roomId?: string }, callback?: Function) => {
+    socket.on('round:sync', async (payload: { roomId?: string }, callback?: (response: unknown) => void) => {
       try {
-        currentUserId = activeUserId(socket, currentUserId);
+        currentUserId = await activeUserId(socket, currentUserId);
         const roomId = payload?.roomId || 'room-tier-10';
         const state = GameEngineService.getRoomState(roomId);
         const wallet = currentUserId === 'guest'
@@ -102,6 +130,9 @@ export function setupSocketServer(httpServer: HttpServer) {
           roundNumber: state?.roundNumber || 0,
           status: state?.status || 'BETTING',
           secondsRemaining: state?.secondsRemaining ?? 0,
+          seedCommitment: state?.seedCommitment || '',
+          clientSeed: state?.clientSeed || '',
+          nonce: state?.nonce ?? 0,
           walletBalance: wallet.balance,
           walletLocked: wallet.locked,
           userBets: userBets.map(b => ({
@@ -125,15 +156,24 @@ export function setupSocketServer(httpServer: HttpServer) {
     });
 
     // Real-time Bet placement via Socket (Sub-millisecond Redis atomic deduction)
-    socket.on('place:bet', async (payload: any, callback: Function) => {
+    socket.on('place:bet', async (payload: any, callback?: (response: unknown) => void) => {
       try {
-        currentUserId = activeUserId(socket, currentUserId);
+        currentUserId = await activeUserId(socket, currentUserId);
         if (currentUserId === 'guest') {
-          return callback({ success: false, error: 'Login required.' });
+          return callback?.({ success: false, error: 'Login required.' });
+        }
+        const now = Date.now();
+        if (now - betWindowStartedAt >= 1000) {
+          betWindowStartedAt = now;
+          betsInWindow = 0;
+        }
+        betsInWindow += 1;
+        if (betsInWindow > 15) {
+          return callback?.({ success: false, error: 'Betting speed limit exceeded.' });
         }
         const parsed = PlaceBetSchema.safeParse(payload);
         if (!parsed.success) {
-          return callback({ success: false, error: parsed.error.issues[0].message });
+          return callback?.({ success: false, error: parsed.error.issues[0].message });
         }
         const result = await GameEngineService.placeBet(
           currentUserId,
@@ -180,7 +220,12 @@ export function setupSocketServer(httpServer: HttpServer) {
     });
 
     socket.on('disconnect', () => {
-      // Disconnect cleanup handled automatically by Socket.io
+      activeConnections = Math.max(0, activeConnections - 1);
+      if (currentUserId !== 'guest') {
+        const count = Math.max(0, (userConnectionCounts.get(currentUserId) || 1) - 1);
+        if (count === 0) userConnectionCounts.delete(currentUserId);
+        else userConnectionCounts.set(currentUserId, count);
+      }
     });
   });
 

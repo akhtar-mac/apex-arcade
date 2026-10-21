@@ -33,12 +33,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.GAME_RULE_VERSION = void 0;
 exports.formatINR = formatINR;
 exports.roundCurrency = roundCurrency;
 exports.calculatePayout = calculatePayout;
-exports.calculateHouseEdge = calculateHouseEdge;
 exports.maskPhoneNumber = maskPhoneNumber;
 exports.calculateProvablyFairCard = calculateProvablyFairCard;
+exports.selectEligibleQr = selectEligibleQr;
+exports.screenshotRetentionDecision = screenshotRetentionDecision;
+exports.redactSensitive = redactSensitive;
+exports.rateLimitMode = rateLimitMode;
 exports.verifyProvablyFairCard = verifyProvablyFairCard;
 exports.generateRandomSeed = generateRandomSeed;
 exports.formatSeconds = formatSeconds;
@@ -70,15 +74,6 @@ function calculatePayout(stake, multiplier = 10.0) {
     return roundCurrency(stake * multiplier);
 }
 /**
- * Calculate Gross Gaming Revenue (GGR) / House margin
- */
-function calculateHouseEdge(totalPool, totalPayouts) {
-    if (totalPool === 0)
-        return 0;
-    const margin = ((totalPool - totalPayouts) / totalPool) * 100;
-    return roundCurrency(margin);
-}
-/**
  * Mask Indian phone number for public winner feeds (e.g., 98****3210)
  */
 function maskPhoneNumber(phone) {
@@ -86,20 +81,69 @@ function maskPhoneNumber(phone) {
         return '98******01';
     return `${phone.slice(0, 2)}******${phone.slice(-2)}`;
 }
+/** Rules version stored with a round. A chi-square check is not a fairness certificate. */
+exports.GAME_RULE_VERSION = '2026-10-21-rejection-sample-v1';
 /**
- * Provably Fair Server-side RNG calculation using HMAC-SHA256
- * Returns integer in range [1, 14] uniformly distributed
+ * Provably Fair Server-side RNG calculation using HMAC-SHA256.
+ * Returns an integer in [1, 14]. Values are rejection-sampled so the mapping is not a short modulo.
  */
 function calculateProvablyFairCard(serverSeed, clientSeed, nonce) {
-    const hmac = crypto.createHmac('sha256', serverSeed);
-    hmac.update(`${clientSeed}:${nonce}`);
-    const hash = hmac.digest('hex');
-    // Convert first 8 hex characters to integer (32-bit unsigned)
-    const subHash = hash.substring(0, 8);
-    const intVal = parseInt(subHash, 16);
-    // Map to [1, 14]
-    const card = (intVal % 14) + 1;
-    return { card, hash };
+    const range = 14;
+    const digest = crypto.createHmac('sha256', serverSeed).update(`${clientSeed}:${nonce}`).digest();
+    const limit = Math.floor(0x100000000 / range) * range;
+    for (let offset = 0; offset + 4 <= digest.length; offset += 4) {
+        const value = digest.readUInt32BE(offset);
+        if (value < limit)
+            return { card: (value % range) + 1, hash: digest.toString('hex') };
+    }
+    const retry = crypto.createHmac('sha256', serverSeed).update(`${clientSeed}:${nonce}:retry`).digest();
+    return { card: (retry.readUInt32BE(0) % range) + 1, hash: digest.toString('hex') };
+}
+function selectEligibleQr(accounts, amount = 0) {
+    for (const account of accounts) {
+        if (!account.isActive || account.isPaused || account.status === 'PAUSED' || account.dailyLimit <= 0)
+            continue;
+        if (account.currentCollected + amount <= account.dailyLimit)
+            return account;
+    }
+    return null;
+}
+function screenshotRetentionDecision(days, now = Date.now()) {
+    const raw = (days || '').trim();
+    if (!raw) {
+        return { enabled: false, cutoff: null, reason: 'SCREENSHOT_RETENTION_DAYS is unset. The data owner has not approved a retention period.' };
+    }
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3650) {
+        return { enabled: false, cutoff: null, reason: 'SCREENSHOT_RETENTION_DAYS must be a whole number from 1 to 3650.' };
+    }
+    return { enabled: true, cutoff: new Date(now - parsed * 86_400_000), reason: `Delete screenshot bytes older than ${parsed} days.` };
+}
+const SENSITIVE_KEY = /password|token|secret|otp|authorization|cookie|api[-_]?key/i;
+/** Remove credential-bearing fields and connection strings before a log or test alert is sent. */
+function redactSensitive(value) {
+    if (typeof value === 'string') {
+        return value
+            .replace(/postgres(?:ql)?:\/\/\S+/gi, 'postgresql://***')
+            .replace(/redis:\/\/\S+/gi, 'redis://***');
+    }
+    if (Array.isArray(value))
+        return value.map((item) => redactSensitive(item));
+    if (value && typeof value === 'object') {
+        const cleaned = {};
+        for (const [key, item] of Object.entries(value)) {
+            cleaned[key] = SENSITIVE_KEY.test(key) ? '[redacted]' : redactSensitive(item);
+        }
+        return cleaned;
+    }
+    return value;
+}
+function rateLimitMode(redisConnected, failClosed) {
+    if (redisConnected)
+        return 'redis';
+    if (failClosed)
+        return 'closed';
+    return 'memory';
 }
 /**
  * Client-verifiable check for provably fair round

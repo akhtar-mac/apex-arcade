@@ -5,9 +5,9 @@ import { Ledger } from './ledger.service.js';
 import { TxType, TxStatus } from '@arcade/shared-types';
 import { GameEngineService } from './game-engine.service.js';
 import { PayoutService } from './payout.service.js';
-import { TurnoverService } from './turnover.service.js';
 import { ComplianceService } from './compliance.service.js';
 import * as crypto from 'crypto';
+import { selectEligibleQr } from '@arcade/shared-utils';
 
 const UPI_FILE = path.resolve(process.cwd(), 'data', 'upi-accounts.json');
 
@@ -81,7 +81,6 @@ async function persistAccount(acc: UpiAccount) {
 }
 
 export class PaymentService {
-  private static webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || 'apex_arcade_auto_webhook_secret_2026';
   private static lastResetTime: number = Date.now();
   private static resetIntervalMs: number = 24 * 60 * 60 * 1000; // 24 hours auto reset
 
@@ -158,18 +157,14 @@ export class PaymentService {
   /**
    * Returns the currently active rotated UPI account that has remaining limit
    */
-  static getActiveUpiAccount(): UpiAccount | null {
+  static getActiveUpiAccount(amount = 0): UpiAccount | null {
     this.checkAndAutoResetLimits();
     for (const acc of this.upiAccounts) {
-      if (acc.isActive && !acc.isPaused && acc.status !== 'PAUSED') {
-        if (acc.currentCollected < acc.dailyLimit) {
-          acc.status = 'ACTIVE';
-          return acc;
-        }
-        acc.status = 'LIMIT_REACHED';
-      }
+      if (acc.isActive && !acc.isPaused && acc.currentCollected >= acc.dailyLimit) acc.status = 'LIMIT_REACHED';
     }
-    return null;
+    const selected = selectEligibleQr(this.upiAccounts, amount);
+    if (selected) selected.status = 'ACTIVE';
+    return selected;
   }
 
   /**
@@ -287,7 +282,7 @@ export class PaymentService {
    */
   static async generateDepositIntent(userId: string, amount: number) {
     await ComplianceService.assertDepositAllowed(userId, amount);
-    const activeUpi = this.getActiveUpiAccount();
+    const activeUpi = this.getActiveUpiAccount(amount);
     if (!activeUpi) {
       throw new Error('No UPI QR is published yet. An admin or P2P agent must upload one first.');
     }
@@ -326,174 +321,6 @@ export class PaymentService {
   }
 
   /**
-   * Generates Automated UPI Intent order using active rotated account with 1-click deep links
-   */
-  static async createAutomatedOrder(userId: string, amount: number) {
-    const activeUpi = this.getActiveUpiAccount();
-    if (!activeUpi) {
-      throw new Error('No UPI QR is published yet. An admin or P2P agent must upload one first.');
-    }
-    const orderId = `ORD_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
-    const txId = crypto.randomUUID();
-    const upiId = activeUpi.upiId;
-    const note = `APEX-${orderId}`;
-
-    const genericUpi = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(activeUpi.holderName)}&am=${amount.toFixed(2)}&cu=INR&tr=${orderId}&tn=${note}`;
-    const gpayLink = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(activeUpi.holderName)}&am=${amount.toFixed(2)}&cu=INR&tr=${orderId}&tn=${note}`;
-    const phonepeLink = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(activeUpi.holderName)}&am=${amount.toFixed(2)}&cu=INR&tr=${orderId}&tn=${note}`;
-    const paytmLink = `paytmmp://pay?pa=${upiId}&pn=${encodeURIComponent(activeUpi.holderName)}&am=${amount.toFixed(2)}&cu=INR&tr=${orderId}&tn=${note}`;
-
-    const tx = {
-      id: txId,
-      userId,
-      type: TxType.DEPOSIT,
-      status: TxStatus.PENDING,
-      amount,
-      utrNumber: orderId,
-      screenshot: null,
-      approvedBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    await DB.recordTransaction({ ...tx, upiAccountId: activeUpi.id, utrNumber: null, gatewayName: orderId });
-
-    console.log(`[AUTO GATEWAY] Created UPI order ${orderId} for ₹${amount} using ${upiId} (User ${userId})`);
-
-    return {
-      orderId,
-      transactionId: txId,
-      amount,
-      merchantUpiId: upiId,
-      holderName: activeUpi.holderName,
-      genericUpi,
-      qrImageUrl: activeUpi.qrImageUrl,
-      deepLinks: {
-        gpay: gpayLink,
-        phonepe: phonepeLink,
-        paytm: paytmLink,
-        upi: genericUpi
-      },
-      expiresInSec: 600
-    };
-  }
-
-  /**
-   * Handles incoming Bank / Gateway Webhooks with HMAC verification & instant auto-credit
-   */
-  static async handleWebhook(payload: {
-    orderId: string;
-    status: 'SUCCESS' | 'FAILED';
-    amount: number;
-    bankReferenceNumber?: string;
-    signature?: string;
-  }) {
-    console.log(`[AUTO GATEWAY] 📡 Incoming payment webhook for Order ${payload.orderId}: Status ${payload.status}`);
-
-    // Find transaction by orderId or utrNumber
-    let matchedTx: any = null;
-    for (const tx of DB.memory.transactions.values()) {
-      if (tx.utrNumber === payload.orderId || tx.id === payload.orderId) {
-        matchedTx = tx;
-        break;
-      }
-    }
-
-    if (!matchedTx) {
-      try {
-        const prisma = DB.getPrisma();
-        matchedTx = await prisma.transaction.findFirst({
-          where: { utrNumber: payload.orderId }
-        });
-      } catch {}
-    }
-
-    if (!matchedTx) {
-      console.warn(`[AUTO GATEWAY] ⚠️ Transaction for Order ${payload.orderId} not found`);
-      return { success: false, error: 'Transaction not found' };
-    }
-
-    // Idempotency check: Already credited
-    if (matchedTx.status === TxStatus.SUCCESS) {
-      console.log(`[AUTO GATEWAY] ℹ️ Order ${payload.orderId} already credited. Skipping duplicate.`);
-      return { success: true, message: 'Already processed', duplicate: true, isVerifiedDepositor: true };
-    }
-
-    if (payload.status === 'SUCCESS') {
-      matchedTx.status = TxStatus.SUCCESS;
-      matchedTx.approvedBy = 'AUTO_BANK_GATEWAY';
-      matchedTx.utrNumber = payload.bankReferenceNumber || matchedTx.utrNumber;
-      matchedTx.updatedAt = new Date();
-
-      DB.memory.transactions.set(matchedTx.id, matchedTx);
-
-      // 1. Atomic Wallet Credit
-      const creditRes = await DB.atomicWalletCredit(matchedTx.userId, matchedTx.amount);
-
-      // 2. Record collection towards daily UPI account limit & auto-rotate if filled
-      this.recordCollection(matchedTx.amount);
-
-      // 3. Update 1.0x Turnover / Wagering Requirement
-      await TurnoverService.addDepositTurnover(matchedTx.userId, matchedTx.amount);
-
-      // 4. Grant User Official Verified Depositor Status
-      this.verifyUserAfterDeposit(matchedTx.userId);
-
-      // 4. Real-time PostgreSQL Update
-      try {
-        const prisma = DB.getPrisma();
-        await prisma.transaction.update({
-          where: { id: matchedTx.id },
-          data: {
-            status: 'SUCCESS',
-            approvedBy: 'AUTO_BANK_GATEWAY',
-            utrNumber: matchedTx.utrNumber,
-            updatedAt: new Date()
-          }
-        });
-      } catch {}
-
-      // 5. Real-Time WebSocket Notification to User's App with Verified Badge
-      const io = GameEngineService.getIo();
-      if (io) {
-        io.to(`user:${matchedTx.userId}`).emit('wallet:update', {
-          userId: matchedTx.userId,
-          balance: creditRes.newBalance,
-          locked: 0,
-          delta: matchedTx.amount,
-          isVerifiedDepositor: true,
-          reason: `Deposit auto-credited: ₹${matchedTx.amount.toFixed(2)}`
-        });
-      }
-
-      console.log(`[AUTO GATEWAY] 💰 Auto-credited ₹${matchedTx.amount} for User ${matchedTx.userId}! New Balance: ₹${creditRes.newBalance}`);
-      return { success: true, credited: true, newBalance: creditRes.newBalance, isVerifiedDepositor: true };
-    } else {
-      matchedTx.status = TxStatus.FAILED;
-      matchedTx.updatedAt = new Date();
-      DB.memory.transactions.set(matchedTx.id, matchedTx);
-      return { success: true, credited: false, status: 'FAILED' };
-    }
-  }
-
-  /**
-   * Instant Payment Simulator for sandbox testing
-   */
-  static async simulateInstantAutoPay(transactionId: string) {
-    const tx = DB.memory.transactions.get(transactionId);
-    if (!tx) {
-      throw new Error('Transaction not found');
-    }
-    const fakeUtr = `BANK${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-    return await this.handleWebhook({
-      orderId: tx.utrNumber || tx.id,
-      status: 'SUCCESS',
-      amount: tx.amount,
-      bankReferenceNumber: fakeUtr
-    });
-  }
-
-  /**
    * Submits manual UTR reference ID & proof screenshot for P2P deposit queue
    */
   static async submitUtrProof(userId: string, utrNumber: string, amount: number, screenshotBase64?: string, txId?: string) {
@@ -501,14 +328,23 @@ export class PaymentService {
     if (!/^[0-9]{12}$/.test(cleanUtr)) {
       throw new Error('UTR must be exactly 12 digits');
     }
-    await ComplianceService.assertDepositAllowed(userId, amount);
-    const existingIntent = txId ? DB.memory.transactions.get(txId) : null;
+    const existingIntent = txId
+      ? await DB.getPrisma().transaction.findUnique({ where: { id: txId } })
+      : null;
     if (!existingIntent || existingIntent.type !== TxType.DEPOSIT || existingIntent.status !== TxStatus.PENDING) {
       throw new Error('Open the payment QR first, then submit the 12-digit UTR.');
     }
     if (existingIntent.userId !== userId) {
       throw new Error('That deposit does not belong to this player');
     }
+    const intendedAmount = Number(existingIntent.amount);
+    if (Math.round(intendedAmount * 100) !== Math.round(amount * 100)) {
+      throw new Error('The UTR amount must match the original deposit intent.');
+    }
+    if (Date.now() - existingIntent.createdAt.getTime() > 10 * 60 * 1000) {
+      throw new Error('This deposit intent expired. Open a fresh payment QR.');
+    }
+    await ComplianceService.assertDepositAllowed(userId, intendedAmount);
     const active = existingIntent.upiAccountId
       ? this.upiAccounts.find(a => a.id === existingIntent.upiAccountId)
       : this.getActiveUpiAccount();
@@ -524,15 +360,15 @@ export class PaymentService {
       userId,
       type: TxType.DEPOSIT,
       status: TxStatus.PENDING,
-      amount,
+      amount: intendedAmount,
       utrNumber: cleanUtr,
-      screenshot: screenshotBase64 || existingIntent?.screenshot || null,
+      screenshot: screenshotBase64 || existingIntent.screenshot || null,
       upiAccountId: active?.id || existingIntent?.upiAccountId || null,
       gatewayName: 'MANUAL_P2P_UPI',
       createdAt: existingIntent?.createdAt || new Date()
     };
     await DB.recordTransaction(tx);
-    console.log(`[P2P] Deposit UTR ${cleanUtr} for ₹${amount} queued for user ${userId}`);
+    console.log(`[P2P] Deposit UTR ending ${cleanUtr.slice(-4)} for ₹${intendedAmount} queued for user ${userId}`);
     return DB.memory.transactions.get(id);
   }
 
@@ -558,8 +394,8 @@ export class PaymentService {
       if (row.status === 'SUCCESS') throw new Error('Transaction is already approved');
       if (row.status !== 'PENDING') throw new Error('Deposit is not waiting for approval');
 
-      const wallets = await db.$queryRaw<Array<{ id: string; balance: any }>>`
-        SELECT id, balance FROM "Wallet" WHERE "userId" = ${row.userId} FOR UPDATE
+      const wallets = await db.$queryRaw<Array<{ id: string; balance: any; unwagered: any }>>`
+        SELECT id, balance, unwagered FROM "Wallet" WHERE "userId" = ${row.userId} FOR UPDATE
       `;
       if (!wallets[0]) throw new Error('Wallet not found');
       const amount = Number(row.amount);
@@ -574,7 +410,8 @@ export class PaymentService {
       const bonus = earlierDeposits === 0 ? Math.round(amount * 50) / 100 : 0;
       const credit = Math.round((amount + bonus) * 100) / 100;
       const newBalance = Math.round((Number(wallets[0].balance) + credit) * 100) / 100;
-      await db.wallet.update({ where: { id: wallets[0].id }, data: { balance: newBalance } });
+      const unwagered = Math.round((Number(wallets[0].unwagered) + credit) * 100) / 100;
+      await db.wallet.update({ where: { id: wallets[0].id }, data: { balance: newBalance, unwagered } });
       await db.transaction.update({
         where: { id: txId },
         data: { status: 'SUCCESS', approvedBy: adminId, approvedAt: new Date() }
@@ -593,7 +430,7 @@ export class PaymentService {
           }
         });
       }
-      return { userId: row.userId, amount, bonus, newBalance, upiAccountId: row.upiAccountId };
+      return { userId: row.userId, amount, bonus, newBalance, unwagered, upiAccountId: row.upiAccountId };
     });
 
     const cached = DB.memory.transactions.get(txId) || { id: txId, type: TxType.DEPOSIT };
@@ -605,11 +442,11 @@ export class PaymentService {
     DB.memory.transactions.set(txId, cached);
     const wallet = DB.memory.wallets.get(approved.userId) || { id: null, userId: approved.userId, locked: 0 };
     wallet.balance = approved.newBalance;
+    wallet.unwagered = approved.unwagered;
     wallet.updatedAt = new Date();
     DB.memory.wallets.set(approved.userId, wallet);
 
     await this.recordCollection(approved.amount, approved.upiAccountId);
-    await TurnoverService.addDepositTurnover(approved.userId, approved.amount + (approved.bonus || 0));
     this.verifyUserAfterDeposit(approved.userId);
 
     const io = GameEngineService.getIo();
@@ -624,7 +461,7 @@ export class PaymentService {
     }
 
     console.log(`[P2P] Admin ${adminId} approved deposit ₹${approved.amount} for ${approved.userId}`);
-    return { transaction: cached, userNewBalance: approved.newBalance, isVerifiedDepositor: true };
+    return { transaction: cached, userNewBalance: approved.newBalance, bonus: approved.bonus, isVerifiedDepositor: true };
   }
 
   /**
