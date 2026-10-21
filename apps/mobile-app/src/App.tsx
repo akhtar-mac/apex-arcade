@@ -38,9 +38,7 @@ import {
 } from 'lucide-react';
 import { NativeUpiService, HapticFeedback } from './services/native-upi.js';
 
-// ══════════════════════════════════════════════════════════════════════════
 // CONSTANTS & GAME DATA
-// ══════════════════════════════════════════════════════════════════════════
 
 export interface PictureCard {
   id: number;
@@ -115,9 +113,7 @@ export interface LiveFeedBetItem {
   isSelf?: boolean;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // AUDIO SYNTHESIZER (Pure Web Audio - No Assets Needed)
-// ══════════════════════════════════════════════════════════════════════════
 
 class SoundFX {
   private ctx: AudioContext | null = null;
@@ -204,9 +200,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // MAIN APPLICATION COMPONENT
-// ══════════════════════════════════════════════════════════════════════════
 
 export default function MobileApp() {
   // Navigation & Auth
@@ -664,9 +658,7 @@ export default function MobileApp() {
   // Activity filter tab
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'BET' | 'DEPOSIT' | 'WITHDRAW'>('ALL');
 
-  // ════════════════════════════════════════════════════════════════════════
   // TRUE REAL-TIME SOCKET.IO ENGINE SYNCHRONIZATION
-  // ════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (!isLoggedIn || activeTab !== 'arena') return;
     const socket = io(API_BASE, {
@@ -863,9 +855,7 @@ export default function MobileApp() {
     };
   }, [API_BASE]);
 
-  // ════════════════════════════════════════════════════════════════════════
   // BETTING ACTIONS
-  // ════════════════════════════════════════════════════════════════════════
   const arenaCards = selectedRoom.cards && selectedRoom.cards.length === 14 ? selectedRoom.cards : PICTURE_CARDS;
   const arenaMultiplier = selectedRoom.multiplier || 10;
   const roomList = eventsReady ? eventRooms : ROOMS;
@@ -966,9 +956,7 @@ export default function MobileApp() {
     }
   };
 
-  // ════════════════════════════════════════════════════════════════════════
   // DEPOSIT HANDLER (1-Click Auto + Manual P2P)
-  // ════════════════════════════════════════════════════════════════════════
   const authHeaders = () => {
     const token = memoryAccessToken;
     return {
@@ -1067,9 +1055,7 @@ export default function MobileApp() {
     }
   };
 
-  // ════════════════════════════════════════════════════════════════════════
   // WITHDRAWAL HANDLER
-  // ════════════════════════════════════════════════════════════════════════
   const handleExecuteWithdrawal = async () => {
     if (!memoryAccessToken) {
       showToast('Log in before withdrawing.');
@@ -1134,9 +1120,7 @@ export default function MobileApp() {
     return item.type === activityFilter;
   });
 
-  // ════════════════════════════════════════════════════════════════════════
   // 24/7 CUSTOMER SUPPORT HANDLER
-  // ════════════════════════════════════════════════════════════════════════
   const handleSendSupportMessage = (textToSend?: string) => {
     const text = textToSend || supportInput.trim();
     if (!text) return;
@@ -1174,9 +1158,7 @@ export default function MobileApp() {
     }, 1100);
   };
 
-  // ════════════════════════════════════════════════════════════════════════
   // AUXILIARY MODALS: SUPPORT, RULES & RESPONSIBLE GAMING
-  // ════════════════════════════════════════════════════════════════════════
   const renderSupportModal = () => {
     if (!supportModalOpen) return null;
     return (
@@ -1663,9 +1645,7 @@ export default function MobileApp() {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
   // VIEW: AUTH SCREEN (If Logged Out)
-  // ════════════════════════════════════════════════════════════════════════
   if (!isLoggedIn) {
     return (
       <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#08090C] text-white flex flex-col justify-between px-4 sm:px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] max-w-md mx-auto">
@@ -1923,9 +1903,7 @@ export default function MobileApp() {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
   // VIEW: MAIN APPLICATION SHELL
-  // ════════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-[100dvh] w-full bg-[#08090C] text-white flex flex-col justify-between max-w-md mx-auto relative select-none pb-24">
       {/* ── TOP APP BAR ── */}
@@ -2029,9 +2007,6 @@ export default function MobileApp() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VIEW 1: LOBBY (HOME)
-         ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'lobby' && (
         <main className="p-4 space-y-4 animate-fade-in">
           {/* Hero Jackpot Card */}
@@ -2105,9 +2080,6 @@ export default function MobileApp() {
         </main>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VIEW 2: ARENA (LIVE BETTING GAME TABLE)
-         ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'arena' && (
         <main className="p-3.5 pb-28 space-y-3 animate-fade-in">
           {/* Round Header Bar */}
@@ -2321,9 +2293,6 @@ export default function MobileApp() {
             </div>
           </div>
 
-          {/* ══════════════════════════════════════════════════════════════
-              LIVE ARENA BET STREAM (USER ID, PICTURE CARD & MONEY AMOUNT)
-             ══════════════════════════════════════════════════════════════ */}
           <div className="p-4 rounded-2xl bg-[#111319] border border-white/[0.08] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2416,9 +2385,6 @@ export default function MobileApp() {
         </main>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VIEW 3: ACTIVITY (HISTORY)
-         ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'activity' && (
         <main className="p-4 space-y-4 animate-fade-in">
           <div>
@@ -2490,9 +2456,6 @@ export default function MobileApp() {
         </main>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VIEW 4: PROFILE & SETTINGS
-         ════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'profile' && (
         <main className="p-4 space-y-4 animate-fade-in">
           {/* User Card */}
@@ -2634,9 +2597,6 @@ export default function MobileApp() {
             <span className="text-[10px] font-bold text-[#94A3B8]">{withdrawUpi ? 'ON FILE' : 'NONE'}</span>
           </div>
 
-          {/* ══════════════════════════════════════════════════════════════════
-              SUPPORT, HELP CENTER & LEGAL OPTIONS
-             ══════════════════════════════════════════════════════════════════ */}
           <div className="p-4 rounded-xl bg-[#111319] border border-white/[0.08] space-y-3">
             <h4 className="text-xs uppercase font-bold tracking-wider text-[#94A3B8]">
               Help, Support & Integrity
@@ -2767,9 +2727,6 @@ export default function MobileApp() {
         })}
       </nav>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          MODAL: DEPOSIT (1-Click Auto + Manual QR)
-         ════════════════════════════════════════════════════════════════════ */}
       {needsDepositFirst && activeTab === 'lobby' && !fundWizardOpen && !depositModalOpen && !offerDismissed && (
         <div
           className="fixed inset-0 z-50 bg-black/80"
@@ -2857,7 +2814,6 @@ export default function MobileApp() {
               </button>
             </div>
 
-            {/* TAB 1: INSTANT AUTO PAY */}
             {depositTab === 'instant' ? (
               <div className="space-y-3.5">
                 <div>
@@ -2908,7 +2864,6 @@ export default function MobileApp() {
                 </button>
               </div>
             ) : (
-              /* TAB 2: MANUAL P2P QR */
               <div className="space-y-3.5">
                 <div className="p-3.5 rounded-xl bg-[#181B24] border border-white/[0.06] flex flex-col items-center">
                   {/* Clean QR Display */}
@@ -3028,9 +2983,6 @@ export default function MobileApp() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          MODAL: WITHDRAWAL
-         ════════════════════════════════════════════════════════════════════ */}
       {withdrawModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-[#111319] border border-white/[0.08] rounded-t-3xl sm:rounded-3xl p-5 space-y-4 animate-slide-up">
@@ -3116,9 +3068,6 @@ export default function MobileApp() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          MODAL: WIN CELEBRATION (10x Payout)
-         ════════════════════════════════════════════════════════════════════ */}
       {winModalData && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-gradient-to-b from-[#181B24] to-[#0D0F14] border-2 border-amber-400 rounded-3xl p-6 text-center space-y-4 animate-slide-up shadow-[0_0_50px_rgba(251,191,36,0.35)] relative overflow-hidden">
@@ -3160,9 +3109,6 @@ export default function MobileApp() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          MODALS: 24/7 SUPPORT, RULES CENTER & RESPONSIBLE GAMING
-         ════════════════════════════════════════════════════════════════════ */}
       {renderSupportModal()}
       {renderHelpRulesModal()}
       {renderResponsibleGamingModal()}

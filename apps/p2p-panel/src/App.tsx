@@ -389,7 +389,6 @@ export default function P2PApp() {
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
 
-      {/* ════════════ AGENT HEADER ════════════ */}
       <header className="bg-[#0f1420] border-b border-white/[0.06] px-6 py-4 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 
@@ -430,7 +429,6 @@ export default function P2PApp() {
         </div>
       </header>
 
-      {/* ════════════ MAIN CONTAINER ════════════ */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5">
 
         {/* Queue Counters */}
@@ -472,7 +470,6 @@ export default function P2PApp() {
           ))}
         </div>
 
-        {/* ══ DEPOSITS TAB ══ */}
         {activeTab === 'deposits' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
 
@@ -622,7 +619,6 @@ export default function P2PApp() {
           </div>
         )}
 
-        {/* ══ WITHDRAWALS TAB ══ */}
         {activeTab === 'withdrawals' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
 
@@ -773,7 +769,6 @@ export default function P2PApp() {
           </div>
         )}
 
-        {/* ══ UPI ROTATOR TAB ══ */}
         {activeTab === 'upi-rotator' && (
           <div className="p-6 rounded-3xl bg-[#111826] border border-white/[0.06] space-y-5">
             <div>
@@ -843,7 +838,6 @@ export default function P2PApp() {
           </div>
         )}
 
-        {/* ══ LOGS TAB ══ */}
         {activeTab === 'logs' && (
           <div className="p-6 rounded-3xl bg-[#111826] border border-white/[0.06]">
             <div className="flex items-center justify-between mb-5">

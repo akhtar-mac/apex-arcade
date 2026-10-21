@@ -199,7 +199,7 @@ export class GameEngineService {
         }
       }
 
-      // Phase 3: SETTLING & REVEAL (At 3s remaining)
+      // Reveal when 3 seconds are left.
       else if (state.secondsRemaining === 3 && state.status === RoundStatus.LOCKED) {
         state.status = RoundStatus.SETTLING;
         const winningCard = state.resultCard || 1;
@@ -227,7 +227,7 @@ export class GameEngineService {
         }
       }
 
-      // Phase 4: NEXT ROUND GENERATION (At 0 seconds)
+      // Start the next round when the clock hits zero.
       else if (state.secondsRemaining <= 0) {
         state.status = RoundStatus.COMPLETED;
         const dbRound = DB.memory.gameRounds.get(state.currentRoundId);

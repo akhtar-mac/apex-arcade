@@ -1,29 +1,14 @@
 # Apex Arcade
 
-A restricted-stage 14-picture wagering application. It contains a React/Vite player UI wrapped with Capacitor for Android, a landing site, admin and P2P desk panels, and an Express/Socket.IO API backed by PostgreSQL and Redis.
+A 14-picture game with a player app, a landing site, an admin screen, and a desk for checking UPI payments. The API is Express and Socket.IO. Wallets are in Postgres. Redis holds OTP codes and rate limits.
 
-This repository is not approved for public real-money operation. Public deployments default to disabled betting, deposits, UTR submission, withdrawals, demo OTP, and demo login. See `docs/DEPLOYMENT_RUNBOOK.md` and `docs/SECURITY_AUDIT.md` before any release decision.
+A deposit is a QR code plus a 12-digit UTR that someone on the desk approves. New wallets start at ₹0. There is no payment gateway.
 
-## Applications
+Leave `ENABLE_REGULATED_FEATURES=false` on any public host. Betting and payment routes stay off until that flag is turned on on the server.
 
-- `apps/backend` — Express, Socket.IO, Prisma, PostgreSQL, Redis, and BullMQ.
-- `apps/mobile-app` — React/Vite player UI and Capacitor Android project. It is not React Native.
-- `apps/web-landing` — React/Vite restricted-stage website.
-- `apps/web-admin` — React/Vite admin console.
-- `apps/p2p-panel` — React/Vite manual UPI/UTR review desk.
-- `packages/shared-types` — shared Zod schemas and TypeScript types.
-- `packages/shared-utils` — shared game and money helpers.
+## Run locally
 
-Deposits use manual QR payment and human verification of a 12-digit UTR. No automatic payment gateway or banking bot is implemented. New accounts start at ₹0. Demo credits, when explicitly enabled for local demonstrations, cannot be deposited or withdrawn.
-
-## Local setup
-
-Requirements:
-
-- Node.js 22
-- npm 10
-- PostgreSQL 16
-- Redis 7
+You need Node 22, Postgres 16, and Redis 7.
 
 ```bash
 cp .env.example .env
@@ -33,57 +18,26 @@ npx prisma migrate deploy --schema apps/backend/prisma/schema.prisma
 npm start
 ```
 
-The local ports are:
+- Site: http://localhost:5173
+- Player: http://localhost:5174
+- Admin: http://localhost:5175
+- Desk: http://localhost:5176
+- API: http://localhost:4000
 
-- Landing: `http://localhost:5173`
-- Player: `http://localhost:5174`
-- Admin: `http://localhost:5175`
-- P2P desk: `http://localhost:5176`
-- API: `http://localhost:4000`
-
-`docker compose up -d` can start the repository services when a Docker daemon is available. Apply migrations before exercising API flows.
-
-## Quality gates
-
-```bash
-npm run scan:secrets
-npm run lint
-npm run format:check
-npm run typecheck
-npm test
-npm run audit:deps
-npm run build
-npm run test:e2e
-```
-
-The mutating integration flow is intentionally restricted to a local disposable API:
-
-```bash
-NODE_ENV=test TEST_OTP=654321 ADMIN_PASSWORD=your-test-admin-password npm run test:integration
-```
-
-The API must be running with the same `TEST_OTP`, a disposable migrated database, and a local Redis instance. The script refuses non-loopback hosts.
-
-## Android
-
-The Android project lives under `apps/mobile-app/android`.
+`docker compose up -d` starts Postgres and Redis. The Android app is the player UI in a Capacitor shell, not React Native.
 
 ```bash
 npm --workspace=apps/mobile-app run build
 npx cap sync android --cwd apps/mobile-app
-cd apps/mobile-app/android
-./gradlew assembleDebug
+cd apps/mobile-app/android && ./gradlew assembleDebug
 ```
 
-Debug APKs are test artifacts and must not be published. A release APK or App Bundle must be signed outside the repository with an organization-controlled key after the release gate is cleared. No signing key or password belongs in Git.
+Do not commit a keystore, and do not put a debug APK on the website.
 
-## Release controls
+## Checks
 
-- `DEPLOY_ENV=staging` or `NODE_ENV=production` activates strict public-deployment checks.
-- `ENABLE_REGULATED_FEATURES=false` keeps betting and money movement unavailable.
-- `ALLOW_DEMO_OTP=false` and `ENABLE_DEMO_LOGIN=false` are required publicly.
-- Public CORS origins must be explicit HTTPS origins.
-- `TEST_OTP` is accepted only when `NODE_ENV=test` and is rejected on a public deployment.
-- The Render Blueprint has automatic deployment disabled and uses `prisma migrate deploy`.
-
-See the documents in `docs/` for the audit, test evidence, security findings, and deployment/rollback procedures.
+```bash
+npm test
+npm run lint
+npm run test:e2e
+```

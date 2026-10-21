@@ -32,9 +32,7 @@ import {
   Globe
 } from 'lucide-react';
 
-// ══════════════════════════════════════════════════════════════════════════
 // CONSTANTS & 14 PICTURE CARDS
-// ══════════════════════════════════════════════════════════════════════════
 
 export interface PictureCard {
   id: number;
@@ -99,9 +97,7 @@ export interface UpiAccountItem {
   remainingCapacity: number;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 // ADMIN CONTROL PANEL COMPONENT
-// ══════════════════════════════════════════════════════════════════════════
 
 export default function AdminApp() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -658,9 +654,6 @@ export default function AdminApp() {
             ))}
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 1: OVERVIEW DASHBOARD
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Emergency System & Kill Switch Status Bar */}
@@ -817,9 +810,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB: RISK OPS & EMERGENCY KILL SWITCHES
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'risk-ops' && (
             <div className="space-y-6">
               {/* Header Banner */}
@@ -1080,9 +1070,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 3: LIVE ARENA & CARD LIABILITIES
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'live-rounds' && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl bg-[#111319] border border-white/[0.08]">
@@ -1146,9 +1133,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 4: MULTI-QR & UPI ROTATOR ENGINE (NEW)
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'upi-rotator' && (
             <div className="space-y-6">
               {/* Header Overview Card */}
@@ -1318,9 +1302,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 5: PLAYERS MANAGEMENT (WITH VERIFIED BADGE)
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'events' && (
             <EventsPage apiBase={API_BASE} showToast={showToast} />
           )}
@@ -1420,9 +1401,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 6: SETTLEMENT QUEUE (DEPOSITS & WITHDRAWALS)
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'payments' && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl bg-[#111319] border border-white/[0.08] space-y-4">
@@ -1498,9 +1476,6 @@ export default function AdminApp() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
-              TAB 7: SYSTEM SETTINGS
-             ════════════════════════════════════════════════════════════════ */}
           {activeTab === 'settings' && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl bg-[#111319] border border-white/[0.08] space-y-4">
@@ -1529,9 +1504,6 @@ export default function AdminApp() {
         </main>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════
-          MODAL: ADD NEW UPI QR ACCOUNT
-         ════════════════════════════════════════════════════════════════ */}
       {newUpiModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#111319] border border-white/[0.08] rounded-2xl p-6 space-y-4 animate-slide-up">

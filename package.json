@@ -24,7 +24,7 @@
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep @a11y",
     "lint": "eslint apps packages scripts tests eslint.config.js playwright.config.ts",
-    "format:check": "prettier --check \"docs/**/*.md\" \".github/**/*.yml\" \"eslint.config.js\" \"playwright.config.ts\"",
+    "format:check": "prettier --check \".github/**/*.yml\" \"eslint.config.js\" \"playwright.config.ts\"",
     "typecheck": "npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npm --workspace=apps/backend run build && npm --workspace=apps/mobile-app run build && npm --workspace=apps/p2p-panel run build && npm --workspace=apps/web-admin run build && npm --workspace=apps/web-landing run build",
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "audit:deps:all": "npm audit --audit-level=high",

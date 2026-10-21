@@ -192,7 +192,6 @@ export default function LandingApp() {
         )}
       </header>
 
-      {/* ════════════ HERO SECTION ════════════ */}
       <section className="relative pt-20 sm:pt-28 pb-24 px-5 overflow-hidden">
         {/* Background Orbs */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[700px] orb-animate pointer-events-none -z-10"
@@ -255,7 +254,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ 14 CARDS SHOWCASE ════════════ */}
       <section id="cards" className="py-20 px-5 section-alt border-y border-white/[0.06]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
@@ -306,7 +304,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ HOW IT WORKS (4-PHASE) ════════════ */}
       <section id="mechanics" className="py-20 px-5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
@@ -328,19 +325,18 @@ export default function LandingApp() {
             ))}
           </div>
 
-          {/* 4-Phase Round Loop */}
           <div className="p-6 sm:p-8 rounded-3xl glass-card">
             <div className="flex items-center gap-2 mb-6">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <h3 className="font-black text-lg text-white">The Real-Time 4-Phase Round Loop</h3>
+              <h3 className="font-black text-lg text-white">How a round goes</h3>
             </div>
 
             <div className="grid sm:grid-cols-4 gap-4">
               {[
-                { phase: 'Phase 1', title: 'Betting Open', icon: '🔓', desc: 'Choose from 14 symbols. The stake leaves the wallet only after the server accepts the bet.', color: '#0df59d', duration: 'Until T-10s' },
-                { phase: 'Phase 2', title: 'Bets Locked', icon: '🔒', desc: 'Last 10 seconds. No new bets. The winning card was sealed when the round started.', color: '#f59e0b', duration: 'Last 10s' },
-                { phase: 'Phase 3', title: 'Winner Revealed', icon: '🎯', desc: 'A winning stake pays 10× into the play wallet.', color: '#00e5ff', duration: 'At reveal' },
-                { phase: 'Phase 4', title: 'Next Round', icon: '🔄', desc: 'The next round starts with a new sealed card.', color: '#c084fc', duration: 'Next' },
+                { phase: 'Open', title: 'Betting', icon: '🔓', desc: 'Pick one of 14 pictures. The stake leaves the wallet only after the server accepts the bet.', color: '#0df59d', duration: 'Until T-10s' },
+                { phase: 'Locked', title: 'No more bets', icon: '🔒', desc: 'Last 10 seconds. The winning card was already sealed when the round started.', color: '#f59e0b', duration: 'Last 10s' },
+                { phase: 'Result', title: 'Winner', icon: '🎯', desc: 'A winning stake pays 10× into the play wallet.', color: '#00e5ff', duration: 'At reveal' },
+                { phase: 'Next', title: 'New round', icon: '🔄', desc: 'The next round starts with a new sealed card.', color: '#c084fc', duration: 'Next' },
               ].map(p => (
                 <div key={p.phase} className="p-4 rounded-2xl border border-white/[0.06] hover:border-white/20 transition" style={{ background: `${p.color}08` }}>
                   <div className="flex items-center justify-between mb-3">
@@ -357,7 +353,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ P2P BANKING SECTION ════════════ */}
       <section id="banking" className="py-20 px-5 section-alt border-y border-white/[0.06]">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -449,7 +444,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ TRUST & SECURITY ════════════ */}
       <section className="py-16 px-5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
@@ -475,7 +469,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ FAQ SECTION ════════════ */}
       <section id="faq" className="py-20 px-5 section-alt border-t border-white/[0.06]">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
@@ -508,7 +501,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ CTA BANNER ════════════ */}
       <section className="py-20 px-5">
         <div className="max-w-2xl mx-auto text-center">
           <div className="p-8 sm:p-12 rounded-3xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(13,245,157,0.08), rgba(0,229,255,0.06), rgba(255,184,0,0.05))' }}>
@@ -527,7 +519,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* ════════════ FOOTER ════════════ */}
       <footer className="border-t border-white/[0.06] bg-[#050709] py-12 px-5">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-start justify-between gap-8 mb-8">
@@ -582,7 +573,6 @@ export default function LandingApp() {
         </div>
       </footer>
 
-      {/* ════════════ DOWNLOAD MODAL ════════════ */}
       {downloadModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-md glass-card rounded-3xl p-7 shadow-2xl relative">
