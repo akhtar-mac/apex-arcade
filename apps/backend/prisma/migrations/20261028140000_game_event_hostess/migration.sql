@@ -1,0 +1,3 @@
+ALTER TABLE "GameEvent" ADD COLUMN IF NOT EXISTS "hostessName" TEXT NOT NULL DEFAULT 'Hostess Maya';
+ALTER TABLE "GameEvent" ADD COLUMN IF NOT EXISTS "hostessImageUrl" TEXT NOT NULL DEFAULT '/hostess.jpg';
+ALTER TABLE "GameEvent" ADD COLUMN IF NOT EXISTS "hostessTagline" TEXT NOT NULL DEFAULT 'Royal Hostess';

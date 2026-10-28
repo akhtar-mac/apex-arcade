@@ -6,6 +6,7 @@ export interface EventCardInput {
   position: number;
   name: string;
   hindi?: string;
+  symbol?: string;
   imageUrl?: string;
 }
 
@@ -14,6 +15,9 @@ export interface EventInput {
   stake: number;
   multiplier: number;
   intervalSec: number;
+  hostessName?: string;
+  hostessImageUrl?: string;
+  hostessTagline?: string;
   cards?: EventCardInput[];
 }
 
@@ -24,6 +28,7 @@ function defaultCards(): EventCardInput[] {
     position: card.id,
     name: card.name,
     hindi: card.hindi,
+    symbol: card.symbol,
     imageUrl: card.imageUrl
   }));
 }
@@ -53,11 +58,12 @@ function cleanCards(input?: EventCardInput[]) {
       throw new Error('A picture must be an uploaded image or an https link.');
     }
     const template = PICTURE_CARDS.find((item) => item.id === position);
+    const symbol = String(card.symbol || template?.symbol || '').trim();
     return {
       position,
       name,
       hindi,
-      symbol: template?.symbol || '',
+      symbol,
       imageUrl: imageUrl || template?.imageUrl || ''
     };
   }).sort((a, b) => a.position - b.position);
@@ -80,7 +86,20 @@ function readSettings(input: EventInput) {
   if (!Number.isInteger(intervalSec) || intervalSec < 30 || intervalSec > 600) {
     throw new Error('Round length must be 30 to 600 seconds.');
   }
-  return { name, stake, multiplier, intervalSec, cards: cleanCards(input.cards) };
+  const hostessName = String(input.hostessName || 'Hostess Maya').trim().slice(0, 40) || 'Hostess Maya';
+  const hostessImageUrl = String(input.hostessImageUrl || '/hostess.jpg').trim() || '/hostess.jpg';
+  const hostessTagline = String(input.hostessTagline || 'Royal Hostess').trim().slice(0, 40) || 'Royal Hostess';
+
+  return {
+    name,
+    stake,
+    multiplier,
+    intervalSec,
+    hostessName,
+    hostessImageUrl,
+    hostessTagline,
+    cards: cleanCards(input.cards)
+  };
 }
 
 function toPublic(event: {
@@ -91,6 +110,9 @@ function toPublic(event: {
   intervalSec: number;
   isLive: boolean;
   fixedStake?: boolean;
+  hostessName?: string;
+  hostessImageUrl?: string;
+  hostessTagline?: string;
   cards: Array<{ position: number; name: string; hindi: string; symbol: string; imageUrl: string }>;
 }) {
   return {
@@ -101,6 +123,9 @@ function toPublic(event: {
     intervalSec: event.intervalSec,
     isLive: event.isLive,
     fixedStake: Boolean(event.fixedStake),
+    hostessName: event.hostessName || 'Hostess Maya',
+    hostessImageUrl: event.hostessImageUrl || '/hostess.jpg',
+    hostessTagline: event.hostessTagline || 'Royal Hostess',
     cards: event.cards
       .slice()
       .sort((a, b) => a.position - b.position)
@@ -124,6 +149,9 @@ function memoryRoom(event: ReturnType<typeof toPublic>) {
     isActive: event.isLive,
     multiplier: event.multiplier,
     fixedStake: event.fixedStake,
+    hostessName: event.hostessName,
+    hostessImageUrl: event.hostessImageUrl,
+    hostessTagline: event.hostessTagline,
     cards: event.cards
   };
 }
@@ -171,6 +199,9 @@ export class EventService {
         intervalSec: settings.intervalSec,
         isLive: false,
         fixedStake: true,
+        hostessName: settings.hostessName,
+        hostessImageUrl: settings.hostessImageUrl,
+        hostessTagline: settings.hostessTagline,
         cards: { create: settings.cards }
       },
       include: { cards: true }
@@ -191,6 +222,9 @@ export class EventService {
         stake: settings.stake,
         multiplier: settings.multiplier,
         intervalSec: settings.intervalSec,
+        hostessName: settings.hostessName,
+        hostessImageUrl: settings.hostessImageUrl,
+        hostessTagline: settings.hostessTagline,
         cards: { create: settings.cards }
       },
       include: { cards: true }

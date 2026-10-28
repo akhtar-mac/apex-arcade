@@ -260,7 +260,7 @@ export class PaymentService {
     const index = this.upiAccounts.findIndex(a => a.id === id);
     if (index < 0) throw new Error('Account not found');
     this.upiAccounts.splice(index, 1);
-    await DB.getPrisma().upiAccount.delete({ where: { id } });
+    await DB.getPrisma().upiAccount.deleteMany({ where: { id } });
     return { id, deleted: true };
   }
 
@@ -286,6 +286,7 @@ export class PaymentService {
     if (!activeUpi) {
       throw new Error('No UPI QR is published yet. An admin or P2P agent must upload one first.');
     }
+    await persistAccount(activeUpi);
     const txId = crypto.randomUUID();
     const upiId = activeUpi.upiId;
     const note = `DEP-${txId.substring(0, 8).toUpperCase()}`;

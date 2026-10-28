@@ -176,6 +176,9 @@ model GameEvent {
   intervalSec Int         @default(120)
   isLive      Boolean     @default(false)
   fixedStake  Boolean     @default(false)
+  hostessName     String  @default("Hostess Maya")
+  hostessImageUrl String  @default("/hostess.jpg")
+  hostessTagline  String  @default("Royal Hostess")
   cards       EventCard[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

@@ -20,6 +20,7 @@
     "dev:mobile": "npm --workspace=apps/mobile-app run dev",
     "dev:p2p": "npm --workspace=apps/p2p-panel run dev",
     "test": "node --test tests/*.test.js",
+    "test:models": "node tests/test-all-models-and-flows.mjs",
     "test:integration": "node tests/desk-flow.mjs",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep @a11y",

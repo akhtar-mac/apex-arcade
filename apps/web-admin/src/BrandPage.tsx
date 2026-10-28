@@ -78,8 +78,8 @@ export default function BrandPage({ apiBase, showToast }: BrandPageProps) {
       <label className="block text-xs text-slate-400">Logo
         <input type="file" accept="image/*" onChange={e => onLogo(e.target.files?.[0])} className="mt-1 block text-xs" />
       </label>
-      {logoUrl && <img src={logoUrl} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/10" />}
-      <button type="button" disabled={saving} onClick={save} className="px-4 py-2 rounded-lg bg-[#00F59B] text-black text-sm font-black disabled:opacity-50">
+      {logoUrl && <img src={logoUrl} alt="" className="w-16 h-16 rounded-xl object-cover border border-amber-500/20" />}
+      <button type="button" disabled={saving} onClick={save} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black text-sm font-black disabled:opacity-50 hover:brightness-110 shadow-md shadow-amber-500/20 transition-all">
         {saving ? 'Saving…' : 'Save website'}
       </button>
     </div>

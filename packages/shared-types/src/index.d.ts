@@ -41,6 +41,12 @@ export interface RoomTier {
     minEntry: number;
     intervalSec: number;
     activePlayers: number;
+    multiplier?: number;
+    fixedStake?: boolean;
+    hostessName?: string;
+    hostessImageUrl?: string;
+    hostessTagline?: string;
+    cards?: PictureCard[];
 }
 export declare const ROOM_TIERS: RoomTier[];
 export declare const PhoneOtpRequestSchema: z.ZodObject<{

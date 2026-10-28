@@ -25,20 +25,20 @@ import {
 // ─── Data ───────────────────────────────────────────────────────────────────
 
 const PICTURE_CARDS = [
-  { id: 1,  name: 'Lion',     symbol: '🦁', hindi: 'Sher',   color: '#f59e0b', imageUrl: '/cards/card_1.jpg' },
-  { id: 2,  name: 'Tiger',    symbol: '🐯', hindi: 'Bagh',   color: '#f97316', imageUrl: '/cards/card_2.jpg' },
-  { id: 3,  name: 'Elephant', symbol: '🐘', hindi: 'Hathi',  color: '#94a3b8', imageUrl: '/cards/card_3.jpg' },
-  { id: 4,  name: 'Horse',    symbol: '🐎', hindi: 'Ghoda',  color: '#a16207', imageUrl: '/cards/card_4.jpg' },
-  { id: 5,  name: 'Eagle',    symbol: '🦅', hindi: 'Cheel',  color: '#38bdf8', imageUrl: '/cards/card_5.jpg' },
-  { id: 6,  name: 'Peacock',  symbol: '🦚', hindi: 'Mor',    color: '#14b8a6', imageUrl: '/cards/card_6.jpg' },
-  { id: 7,  name: 'Crown',    symbol: '👑', hindi: 'Taj',    color: '#fcd34d', imageUrl: '/cards/card_7.jpg' },
-  { id: 8,  name: 'Diamond',  symbol: '💎', hindi: 'Heera',  color: '#67e8f9', imageUrl: '/cards/card_8.jpg' },
-  { id: 9,  name: 'Sword',    symbol: '⚔️', hindi: 'Talwar', color: '#f43f5e', imageUrl: '/cards/card_9.jpg' },
-  { id: 10, name: 'Shield',   symbol: '🛡️', hindi: 'Dhaal',  color: '#818cf8', imageUrl: '/cards/card_10.jpg' },
-  { id: 11, name: 'Rose',     symbol: '🌹', hindi: 'Gulab',  color: '#ec4899', imageUrl: '/cards/card_11.jpg' },
-  { id: 12, name: 'Lotus',    symbol: '🪷', hindi: 'Kamal',  color: '#c084fc', imageUrl: '/cards/card_12.jpg' },
-  { id: 13, name: 'Snake',    symbol: '🐍', hindi: 'Saap',   color: '#4ade80', imageUrl: '/cards/card_13.jpg' },
-  { id: 14, name: 'Dragon',   symbol: '🐉', hindi: 'Nag',    color: '#fb7185', imageUrl: '/cards/card_14.jpg' },
+  { id: 1,  name: 'Goat',      symbol: '🐐', hindi: 'Bakri',    color: '#b45309', imageUrl: '/cards/card_1.jpg' },
+  { id: 2,  name: 'Diya',      symbol: '🪔', hindi: 'Deepak',   color: '#f59e0b', imageUrl: '/cards/card_2.jpg' },
+  { id: 3,  name: 'Rose',      symbol: '🌹', hindi: 'Gulab',    color: '#e11d48', imageUrl: '/cards/card_3.jpg' },
+  { id: 4,  name: 'Sun',       symbol: '☀️', hindi: 'Suraj',    color: '#eab308', imageUrl: '/cards/card_4.jpg' },
+  { id: 5,  name: 'Bucket',    symbol: '🪣', hindi: 'Balti',    color: '#0284c7', imageUrl: '/cards/card_5.jpg' },
+  { id: 6,  name: 'Football',  symbol: '⚽', hindi: 'Football', color: '#334155', imageUrl: '/cards/card_6.jpg' },
+  { id: 7,  name: 'Butterfly', symbol: '🦋', hindi: 'Titli',    color: '#06b6d4', imageUrl: '/cards/card_7.jpg' },
+  { id: 8,  name: 'Rabbit',    symbol: '🐇', hindi: 'Khargosh', color: '#78716c', imageUrl: '/cards/card_8.jpg' },
+  { id: 9,  name: 'Pigeon',    symbol: '🕊️', hindi: 'Kabootar', color: '#64748b', imageUrl: '/cards/card_9.jpg' },
+  { id: 10, name: 'Kite',      symbol: '🪁', hindi: 'Patang',   color: '#ea580c', imageUrl: '/cards/card_10.jpg' },
+  { id: 11, name: 'Dholak',    symbol: '🪘', hindi: 'Dholak',   color: '#92400e', imageUrl: '/cards/card_11.jpg' },
+  { id: 12, name: 'Cow',       symbol: '🐄', hindi: 'Gai',      color: '#dc2626', imageUrl: '/cards/card_12.jpg' },
+  { id: 13, name: 'Umbrella',  symbol: '☂️', hindi: 'Chhatri',  color: '#b91c1c', imageUrl: '/cards/card_13.jpg' },
+  { id: 14, name: 'Lantern',   symbol: '🏮', hindi: 'Lalten',   color: '#d97706', imageUrl: '/cards/card_14.jpg' },
 ];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -130,53 +130,53 @@ export default function LandingApp() {
       </div>
 
       {/* ── Navigation ── */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#080a0f]/85 border-b border-white/[0.06]">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#140f0a]/90 border-b border-amber-500/20 shadow-md">
         <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0df59d] to-[#00e5ff] flex items-center justify-center shadow-lg shadow-emerald-500/25 overflow-hidden">
-              {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-lg">🎰</span>}
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-amber-300 overflow-hidden text-black font-black">
+              {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : <span>👑</span>}
             </div>
             <div>
-              <span className="text-lg font-black tracking-tight text-white font-['Outfit']">
+              <span className="text-lg font-black tracking-tight text-amber-100 font-serif">
                 {brand.appName}
               </span>
-              <span className="hidden sm:block text-[9px] font-bold text-slate-500 uppercase tracking-widest">{brand.tagline || 'Pick a card. Win 10×.'}</span>
+              <span className="hidden sm:block text-[9px] font-bold text-amber-200/60 uppercase tracking-widest">{brand.tagline || 'Pick a card. Win 10×.'}</span>
             </div>
           </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold">
-            <a href="#mechanics" className="text-slate-400 hover:text-white transition">How It Works</a>
-            <a href="#cards" className="text-slate-400 hover:text-white transition">14 Cards</a>
-            <a href="#banking" className="text-slate-400 hover:text-white transition">Banking</a>
-            <a href="#faq" className="text-slate-400 hover:text-white transition">FAQ</a>
+            <a href="#mechanics" className="text-amber-200/70 hover:text-white transition">How It Works</a>
+            <a href="#cards" className="text-amber-200/70 hover:text-white transition">14 Cards</a>
+            <a href="#banking" className="text-amber-200/70 hover:text-white transition">Banking</a>
+            <a href="#faq" className="text-amber-200/70 hover:text-white transition">FAQ</a>
           </nav>
 
           {/* CTA */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-amber-400 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               18+ only
             </div>
             <button
               onClick={() => setDownloadModal(true)}
-              className="glow-btn bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition shadow-lg"
+              className="glow-btn bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl flex items-center gap-2 hover:scale-105 active:scale-95 transition shadow-lg border border-amber-300"
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Download App</span>
               <span className="sm:hidden">Get App</span>
             </button>
 
-            <button type="button" aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} className="md:hidden w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-400" onClick={() => setMobileMenuOpen(v => !v)}>
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button type="button" aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} className="md:hidden w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-amber-200" onClick={() => setMobileMenuOpen(v => !v)}>
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-amber-400" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-white/[0.06] bg-[#080a0f] px-5 py-4 space-y-3">
+          <div className="md:hidden border-t border-amber-500/20 bg-[#140f0a] px-5 py-4 space-y-3">
             {[
               ['How It Works', '#mechanics'],
               ['14 Cards', '#cards'],
@@ -184,7 +184,7 @@ export default function LandingApp() {
               ['FAQ', '#faq'],
             ].map(([label, href]) => (
               <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
-                className="block text-slate-300 hover:text-white font-semibold text-sm py-1.5 border-b border-white/[0.04]">
+                className="block text-amber-200/80 hover:text-white font-semibold text-sm py-1.5 border-b border-amber-500/10">
                 {label}
               </a>
             ))}
@@ -195,72 +195,72 @@ export default function LandingApp() {
       <section className="relative pt-20 sm:pt-28 pb-24 px-5 overflow-hidden">
         {/* Background Orbs */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[700px] orb-animate pointer-events-none -z-10"
-          style={{ background: 'radial-gradient(ellipse, rgba(13,245,157,0.07) 0%, rgba(0,229,255,0.04) 40%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(245,158,11,0.12) 0%, rgba(217,119,6,0.06) 40%, transparent 70%)' }} />
         <div className="absolute top-1/3 right-0 w-96 h-96 pointer-events-none -z-10"
-          style={{ background: 'radial-gradient(ellipse, rgba(255,184,0,0.05) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(251,191,36,0.08) 0%, transparent 70%)' }} />
 
         <div className="max-w-5xl mx-auto text-center">
           {/* Badge */}
-          <div className="float-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-bold text-[#00e5ff] mb-6 tracking-wide">
-            <Sparkles className="w-3.5 h-3.5 text-[#0df59d]" />
-            RESTRICTED-STAGE 14-PICTURE ARCADE
+          <div className="float-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-xs font-bold text-amber-300 mb-6 tracking-wide font-serif">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            ROYAL PAPPU PLAYING PICTURES ARCADE
           </div>
 
           {/* Headline */}
-          <h1 className="float-up delay-100 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.08] mb-5">
-            Pick Your Symbol.{' '}
+          <h1 className="float-up delay-100 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.08] mb-5 text-amber-100 font-serif">
+            Pick Your Lucky Card.{' '}
             <br className="hidden sm:block" />
-            <span className="shimmer-text">Win 10.0× in 120 Seconds.</span>
+            <span className="shimmer-text">Win 10.0× Instantly.</span>
           </h1>
 
-          <p className="float-up delay-200 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            14 cards and a 10× payout. Rooms last 120, 180, or 240 seconds. Deposits and withdrawals wait for the desk.
+          <p className="float-up delay-200 text-base sm:text-lg text-amber-200/70 max-w-2xl mx-auto mb-10 leading-relaxed font-sans">
+            Authentic 14-picture Indian arcade game with Hostess Maya. Winning cards sealed before bets. Instant 10× winner payout on every draw.
           </p>
 
           {/* CTA Buttons */}
           <div className="float-up delay-300 flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
             <button
               onClick={() => setDownloadModal(true)}
-              className="glow-btn w-full sm:w-auto bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-emerald-500/20"
+              className="glow-btn w-full sm:w-auto bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-amber-500/25 border border-amber-300"
             >
               <Download className="w-5 h-5" />
               Download App
             </button>
             <a
               href="#mechanics"
-              className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] font-bold text-sm text-slate-300 transition flex items-center justify-center gap-2 hover:text-white"
+              className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-[#1c150e] hover:bg-[#261d15] border border-amber-500/30 font-bold text-sm text-amber-200 transition flex items-center justify-center gap-2 hover:text-white"
             >
-              <Play className="w-4 h-4 text-[#0df59d]" />
+              <Play className="w-4 h-4 text-amber-400" />
               How To Play & Win
-              <ArrowRight className="w-4 h-4 text-slate-500" />
+              <ArrowRight className="w-4 h-4 text-amber-400/60" />
             </a>
           </div>
 
           {/* Hero Stats Bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto">
             {[
-              { label: 'Fixed Multiplier', value: '10.0×', sub: '₹100 bet = ₹1,000', color: '#0df59d' },
-              { label: 'Round Speed', value: '120s', sub: 'Fast rounds all day', color: '#00e5ff' },
-              { label: 'Cash out', value: 'Manual', sub: 'Desk types the UTR', color: '#ffb800' },
-              { label: 'Card Draw', value: 'Sealed', sub: '14 picture cards', color: '#c084fc' },
+              { label: 'Fixed Multiplier', value: '10.0×', sub: '₹100 bet = ₹1,000', color: '#fbbf24' },
+              { label: 'Round Speed', value: '120s', sub: 'Live rooms all day', color: '#f59e0b' },
+              { label: 'Cash Out', value: 'Manual', sub: 'Desk verified UTR', color: '#fde047' },
+              { label: 'Card Draw', value: 'Sealed', sub: 'Mughal host stage', color: '#fbbf24' },
             ].map(stat => (
-              <div key={stat.label} className="glass-card p-4 rounded-2xl text-left hover:bg-white/[0.05] transition">
-                <span className="text-[11px] text-slate-500 font-semibold block mb-1">{stat.label}</span>
+              <div key={stat.label} className="glass-card p-4 rounded-2xl text-left hover:border-amber-500/40 transition">
+                <span className="text-[11px] text-amber-200/60 font-semibold block mb-1">{stat.label}</span>
                 <span className="text-xl font-black font-mono-numbers" style={{ color: stat.color }}>{stat.value}</span>
-                <span className="text-[11px] text-slate-600 block mt-0.5">{stat.sub}</span>
+                <span className="text-[11px] text-amber-200/50 block mt-0.5">{stat.sub}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="cards" className="py-20 px-5 section-alt border-y border-white/[0.06]">
+      <section id="cards" className="py-20 px-5 section-alt border-y border-amber-500/20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <span className="text-[11px] font-black uppercase tracking-widest text-[#0df59d]">The Complete 14 Picture Symbols</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mt-2">Every Card Pays Exactly 10.0×</h2>
-            <p className="text-slate-400 text-sm max-w-xl mx-auto mt-2 leading-relaxed">
-              Select one or multiple cards during the active betting countdown. Bet ₹10 to ₹5,000 per card. Bets freeze at last 10s.
+            <span className="text-[11px] font-black uppercase tracking-widest text-amber-400 font-serif">Pappu Playing Pictures</span>
+            <h2 className="text-3xl sm:text-4xl font-black text-amber-100 mt-2 font-serif">Every Picture Pays Exactly 10.0×</h2>
+            <p className="text-amber-200/70 text-sm max-w-xl mx-auto mt-2 leading-relaxed">
+              Select one or multiple cards during the active betting countdown. Bet ₹10 to ₹5,000 per card. Bets freeze in the final 10 seconds.
             </p>
           </div>
 
@@ -268,23 +268,18 @@ export default function LandingApp() {
             {PICTURE_CARDS.map(card => (
               <div
                 key={card.id}
-                className="card-float group relative p-3 sm:p-4 rounded-2xl border border-white/[0.06] hover:border-white/20 flex flex-col items-center text-center cursor-pointer transition"
-                style={{ background: `linear-gradient(145deg, ${card.color}12, ${card.color}04)` }}
+                className="card-float group relative parchment-texture parchment-border p-3 sm:p-3.5 rounded-2xl flex flex-col items-center text-center cursor-pointer transition shadow-md hover:scale-105"
               >
                 {/* Number */}
-                <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-black/50 text-[9px] font-black flex items-center justify-center text-slate-400">
+                <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-[#451a03]/80 text-amber-100 text-[9px] font-black font-mono-numbers">
                   #{card.id}
                 </div>
 
-                {/* Hover glow */}
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition pointer-events-none"
-                  style={{ background: `radial-gradient(circle at center, ${card.color}15, transparent 65%)` }} />
-
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 my-2 rounded-2xl overflow-hidden shadow-lg border border-amber-400/30 group-hover:border-amber-400 group-hover:scale-105 transition duration-300 bg-black/50 p-1 flex items-center justify-center">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 my-2 rounded-xl overflow-hidden shadow-inner border-2 border-[#8c6239] group-hover:scale-105 transition duration-300 bg-[#f7ecd5] p-0.5 flex items-center justify-center">
                   <img
                     src={card.imageUrl}
                     alt={card.name}
-                    className="w-full h-full object-cover rounded-xl"
+                    className="w-full h-full object-cover rounded-lg"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
                       const fallback = (e.target as HTMLElement).nextElementSibling;
@@ -293,9 +288,9 @@ export default function LandingApp() {
                   />
                   <span className="text-3xl sm:text-4xl hidden leading-none filter drop-shadow-md">{card.symbol}</span>
                 </div>
-                <span className="font-black text-xs sm:text-sm text-white">{card.name}</span>
-                <span className="text-[9px] sm:text-[11px] text-slate-400 mb-2">{card.hindi}</span>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg border shadow-sm text-white" style={{ borderColor: `${card.color}80`, background: `${card.color}30` }}>
+                <span className="font-black text-xs sm:text-sm text-[#451a03] font-serif leading-tight">{card.name}</span>
+                <span className="text-[9px] sm:text-[11px] text-[#78350f] font-semibold mb-1.5">{card.hindi}</span>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-md border border-[#78350f] bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-sm font-mono-numbers">
                   10.0×
                 </span>
               </div>

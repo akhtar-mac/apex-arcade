@@ -34,20 +34,20 @@ var RoundStatus;
     RoundStatus["COMPLETED"] = "COMPLETED";
 })(RoundStatus || (exports.RoundStatus = RoundStatus = {}));
 exports.PICTURE_CARDS = [
-    { id: 1, name: 'Lion', symbol: '🦁', hindiName: 'Sher', hindi: 'Sher', color: '#f59e0b', multiplier: 10.0, imageUrl: '/cards/card_1.jpg' },
-    { id: 2, name: 'Tiger', symbol: '🐯', hindiName: 'Bagh', hindi: 'Bagh', color: '#ea580c', multiplier: 10.0, imageUrl: '/cards/card_2.jpg' },
-    { id: 3, name: 'Elephant', symbol: '🐘', hindiName: 'Hathi', hindi: 'Hathi', color: '#64748b', multiplier: 10.0, imageUrl: '/cards/card_3.jpg' },
-    { id: 4, name: 'Horse', symbol: '🐎', hindiName: 'Ghoda', hindi: 'Ghoda', color: '#854d0e', multiplier: 10.0, imageUrl: '/cards/card_4.jpg' },
-    { id: 5, name: 'Eagle', symbol: '🦅', hindiName: 'Cheel', hindi: 'Cheel', color: '#0284c7', multiplier: 10.0, imageUrl: '/cards/card_5.jpg' },
-    { id: 6, name: 'Peacock', symbol: '🦚', hindiName: 'Mor', hindi: 'Mor', color: '#0d9488', multiplier: 10.0, imageUrl: '/cards/card_6.jpg' },
-    { id: 7, name: 'Crown', symbol: '👑', hindiName: 'Taj', hindi: 'Taj', color: '#eab308', multiplier: 10.0, imageUrl: '/cards/card_7.jpg' },
-    { id: 8, name: 'Diamond', symbol: '💎', hindiName: 'Heera', hindi: 'Heera', color: '#06b6d4', multiplier: 10.0, imageUrl: '/cards/card_8.jpg' },
-    { id: 9, name: 'Sword', symbol: '⚔️', hindiName: 'Talwar', hindi: 'Talwar', color: '#dc2626', multiplier: 10.0, imageUrl: '/cards/card_9.jpg' },
-    { id: 10, name: 'Shield', symbol: '🛡️', hindiName: 'Dhaal', hindi: 'Dhaal', color: '#4f46e5', multiplier: 10.0, imageUrl: '/cards/card_10.jpg' },
-    { id: 11, name: 'Rose', symbol: '🌹', hindiName: 'Gulab', hindi: 'Gulab', color: '#e11d48', multiplier: 10.0, imageUrl: '/cards/card_11.jpg' },
-    { id: 12, name: 'Lotus', symbol: '🪷', hindiName: 'Kamal', hindi: 'Kamal', color: '#d946ef', multiplier: 10.0, imageUrl: '/cards/card_12.jpg' },
-    { id: 13, name: 'Snake', symbol: '🐍', hindiName: 'Saap', hindi: 'Saap', color: '#4ade80', multiplier: 10.0, imageUrl: '/cards/card_13.jpg' },
-    { id: 14, name: 'Dragon', symbol: '🐉', hindiName: 'Nag', hindi: 'Nag', color: '#fb7185', multiplier: 10.0, imageUrl: '/cards/card_14.jpg' }
+    { id: 1, name: 'Goat', symbol: '🐐', hindiName: 'Bakri', hindi: 'Bakri', color: '#b45309', multiplier: 10.0, imageUrl: '/cards/card_1.jpg' },
+    { id: 2, name: 'Diya', symbol: '🪔', hindiName: 'Deepak', hindi: 'Deepak', color: '#f59e0b', multiplier: 10.0, imageUrl: '/cards/card_2.jpg' },
+    { id: 3, name: 'Rose', symbol: '🌹', hindiName: 'Gulab', hindi: 'Gulab', color: '#e11d48', multiplier: 10.0, imageUrl: '/cards/card_3.jpg' },
+    { id: 4, name: 'Sun', symbol: '☀️', hindiName: 'Suraj', hindi: 'Suraj', color: '#eab308', multiplier: 10.0, imageUrl: '/cards/card_4.jpg' },
+    { id: 5, name: 'Bucket', symbol: '🪣', hindiName: 'Balti', hindi: 'Balti', color: '#0284c7', multiplier: 10.0, imageUrl: '/cards/card_5.jpg' },
+    { id: 6, name: 'Football', symbol: '⚽', hindiName: 'Football', hindi: 'Football', color: '#334155', multiplier: 10.0, imageUrl: '/cards/card_6.jpg' },
+    { id: 7, name: 'Butterfly', symbol: '🦋', hindiName: 'Titli', hindi: 'Titli', color: '#06b6d4', multiplier: 10.0, imageUrl: '/cards/card_7.jpg' },
+    { id: 8, name: 'Rabbit', symbol: '🐇', hindiName: 'Khargosh', hindi: 'Khargosh', color: '#78716c', multiplier: 10.0, imageUrl: '/cards/card_8.jpg' },
+    { id: 9, name: 'Pigeon', symbol: '🕊️', hindiName: 'Kabootar', hindi: 'Kabootar', color: '#64748b', multiplier: 10.0, imageUrl: '/cards/card_9.jpg' },
+    { id: 10, name: 'Kite', symbol: '🪁', hindiName: 'Patang', hindi: 'Patang', color: '#ea580c', multiplier: 10.0, imageUrl: '/cards/card_10.jpg' },
+    { id: 11, name: 'Dholak', symbol: '🪘', hindiName: 'Dholak', hindi: 'Dholak', color: '#92400e', multiplier: 10.0, imageUrl: '/cards/card_11.jpg' },
+    { id: 12, name: 'Cow', symbol: '🐄', hindiName: 'Gai', hindi: 'Gai', color: '#dc2626', multiplier: 10.0, imageUrl: '/cards/card_12.jpg' },
+    { id: 13, name: 'Umbrella', symbol: '☂️', hindiName: 'Chhatri', hindi: 'Chhatri', color: '#b91c1c', multiplier: 10.0, imageUrl: '/cards/card_13.jpg' },
+    { id: 14, name: 'Lantern', symbol: '🏮', hindiName: 'Lalten', hindi: 'Lalten', color: '#d97706', multiplier: 10.0, imageUrl: '/cards/card_14.jpg' }
 ];
 exports.ROOM_TIERS = [
     { id: 'room-tier-10', name: 'Blitz Arena', tierLabel: 'FAST 120s', minEntry: 10, intervalSec: 120, activePlayers: 428 },
