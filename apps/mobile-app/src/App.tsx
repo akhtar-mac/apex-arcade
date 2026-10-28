@@ -34,7 +34,8 @@ import {
   FileText,
   ExternalLink,
   Check,
-  Lock
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import { NativeUpiService, HapticFeedback } from './services/native-upi.js';
 
@@ -66,6 +67,28 @@ export const PICTURE_CARDS: PictureCard[] = [
   { id: 14, name: 'Lantern',   symbol: '🏮', hindi: 'Lalten',   color: '#d97706', imageUrl: '/cards/card_14.jpg' },
 ];
 
+export function getCardHindi(card?: { id: number; name?: string; hindi?: string; hindiName?: string }): string {
+  if (!card) return '';
+  if (card.id === 13) return (card.hindi && card.hindi !== 'Saap' && card.hindi !== 'Snake') ? card.hindi : 'Chhatri';
+  if (card.id === 14) return (card.hindi && card.hindi !== 'Nag' && card.hindi !== 'Dragon') ? card.hindi : 'Lalten';
+  if (card.id === 12 && (card.hindi === 'Kamal' || card.name === 'Lotus')) return 'Gai';
+  if (card.id === 8 && (card.hindi === 'Heera' || card.name === 'Diamond')) return 'Khargosh';
+  if (card.id === 2 && (card.hindi === 'Bagh' || card.name === 'Tiger')) return 'Deepak';
+  if (card.id === 1 && (card.hindi === 'Sher' || card.name === 'Lion')) return 'Bakri';
+  return card.hindi || card.hindiName || card.name || `Card ${card.id}`;
+}
+
+export function getCardEnglish(card?: { id: number; name?: string }): string {
+  if (!card) return '';
+  if (card.id === 13 && (card.name === 'Snake' || card.name === 'Saap')) return 'Umbrella';
+  if (card.id === 14 && (card.name === 'Dragon' || card.name === 'Nag')) return 'Lantern';
+  if (card.id === 12 && (card.name === 'Lotus' || card.name === 'Kamal')) return 'Cow';
+  if (card.id === 8 && (card.name === 'Diamond' || card.name === 'Heera')) return 'Rabbit';
+  if (card.id === 2 && (card.name === 'Tiger' || card.name === 'Bagh')) return 'Diya';
+  if (card.id === 1 && (card.name === 'Lion' || card.name === 'Sher')) return 'Goat';
+  return card.name || `Card ${card.id}`;
+}
+
 export interface RoomTier {
   id: string;
   name: string;
@@ -82,9 +105,9 @@ export interface RoomTier {
 }
 
 export const ROOMS: RoomTier[] = [
-  { id: 'room-tier-10',  name: 'Blitz Arena',  tierLabel: 'FAST 120s', minEntry: 10,  interval: 120, activePlayers: 0 },
-  { id: 'room-tier-50',  name: 'Classic Tier', tierLabel: 'PRO 180s',  minEntry: 50,  interval: 180, activePlayers: 0 },
-  { id: 'room-tier-100', name: 'High Roller',  tierLabel: 'VIP 240s',  minEntry: 100, interval: 240, activePlayers: 0 },
+  { id: 'room-tier-10',  name: 'Blitz Arena',  tierLabel: 'FAST 120s', minEntry: 10,  interval: 120, activePlayers: 0, cards: PICTURE_CARDS },
+  { id: 'room-tier-50',  name: 'Classic Tier', tierLabel: 'PRO 180s',  minEntry: 50,  interval: 180, activePlayers: 0, cards: PICTURE_CARDS },
+  { id: 'room-tier-100', name: 'High Roller',  tierLabel: 'VIP 240s',  minEntry: 100, interval: 240, activePlayers: 0, cards: PICTURE_CARDS },
 ];
 
 export type NavTab = 'lobby' | 'arena' | 'activity' | 'profile';
@@ -731,10 +754,10 @@ export default function MobileApp() {
           : (arenaCards.find(c => c.id === winningId) || PICTURE_CARDS[0]);
         const userBet = placedBetsRef.current[winningId] || 0;
 
-        // Record in recent draws history (Last 2-3 Winning Pictures)
+        // Record in recent draws history (Last Winning Pictures)
         setRecentDraws(prev => [
           { roundNumber: data.roundNumber, cardId: winningId, timestamp: 'Just now' },
-          ...prev.slice(0, 4)
+          ...prev.filter(p => p.roundNumber !== data.roundNumber).slice(0, 9)
         ]);
 
         if (userBet > 0) {
@@ -857,6 +880,10 @@ export default function MobileApp() {
         }));
         setEventRooms(rooms);
         setEventsReady(true);
+        setSelectedRoom(prev => {
+          const match = rooms.find(r => r.id === prev.id);
+          return match ? { ...prev, ...match } : prev;
+        });
       } catch {
         if (!stop) setEventsReady(false);
       }
@@ -871,6 +898,32 @@ export default function MobileApp() {
       clearInterval(timer);
     };
   }, [API_BASE]);
+
+  // Dynamic game history sync for arena & last winning draws
+  useEffect(() => {
+    let stop = false;
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/game/history/${selectedRoom.id}`);
+        const json = await res.json();
+        if (stop || !json?.success || !Array.isArray(json.data)) return;
+        const mapped: GameDrawItem[] = json.data.map((r: any) => ({
+          roundNumber: r.roundNumber,
+          cardId: r.resultCard,
+          timestamp: r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'
+        }));
+        setRecentDraws(mapped);
+      } catch {
+        // silent fallback
+      }
+    };
+    fetchHistory();
+    const timer = setInterval(fetchHistory, 10000);
+    return () => {
+      stop = true;
+      clearInterval(timer);
+    };
+  }, [selectedRoom.id, API_BASE]);
 
   // BETTING ACTIONS
   const arenaCards = selectedRoom.cards && selectedRoom.cards.length === 14 ? selectedRoom.cards : PICTURE_CARDS;
@@ -2198,13 +2251,13 @@ export default function MobileApp() {
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute bottom-0 inset-x-0 bg-black/75 text-amber-300 text-[10px] font-black py-0.5">
-                        {(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0]).hindi}
+                        {getCardHindi(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0])}
                       </div>
                     </div>
 
                     <div className="mt-1 flex items-center gap-1.5">
                       <span className="text-xs font-black text-amber-950 font-serif">
-                        #{(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0]).name}
+                        #{getCardEnglish(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0])}
                       </span>
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-600 text-white font-mono-numbers">
                         {arenaMultiplier}× Payout
@@ -2295,7 +2348,7 @@ export default function MobileApp() {
                     <div className="w-full flex items-center justify-between text-[9px] font-bold text-[#6d4621] z-10 px-0.5 leading-none mb-0.5">
                       <div className="flex items-center gap-1 overflow-hidden">
                         <span className="font-mono-numbers text-amber-900 font-black">#{card.id}</span>
-                        <span className="font-serif text-[#451a03] font-black text-[9px] truncate">{card.hindi}</span>
+                        <span className="font-serif text-[#451a03] font-black text-[9px] truncate">{getCardHindi(card)}</span>
                       </div>
                       {tag ? (
                         <span className="shrink-0 px-1 py-0.5 rounded-full multiplier-tag text-[8px] font-black leading-none shadow-sm">
@@ -2310,7 +2363,7 @@ export default function MobileApp() {
                     <div className="relative w-16 h-16 sm:w-18 sm:h-18 my-0.5 rounded-lg overflow-hidden flex items-center justify-center bg-[#ecd3a5] border border-[#a87a4c]/50 shadow-inner group-hover:scale-105 transition-transform duration-300">
                       <img
                         src={card.imageUrl}
-                        alt={card.name}
+                        alt={getCardEnglish(card)}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = 'none';
@@ -2323,7 +2376,7 @@ export default function MobileApp() {
 
                     {/* Card English Name */}
                     <span className="text-[10px] font-black text-[#3a200a] tracking-tight leading-none z-10 text-center truncate max-w-full">
-                      {card.name}
+                      {getCardEnglish(card)}
                     </span>
 
                     {/* User Bet Pill Overlay */}
@@ -2339,50 +2392,66 @@ export default function MobileApp() {
 
             {/* Extra Cards (Card 13 Umbrella, Card 14 Lantern) & Recent Draw Feed */}
             {arenaCards.length > 12 && (
-              <div className="mt-3 pt-2.5 border-t border-[#8c6239]/30 flex flex-col sm:flex-row gap-2 items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-[#6d4621] uppercase">Bonus Symbols:</span>
-                  <div className="flex gap-1.5">
+              <div className="mt-3 pt-2.5 border-t border-[#8c6239]/30 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-[#fbf6ed]/80 rounded-xl p-2.5 border border-[#8c6239]/20 shadow-xs">
+                {/* Bonus Symbols (Card 13: Chhatri, Card 14: Lalten) */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-[#6d4621] uppercase tracking-wider whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    Bonus Symbols:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {arenaCards.slice(12, 14).map(card => {
                       const userBet = placedBets[card.id] || 0;
                       const isWinner = winningCard === card.id;
+                      const cardHindi = getCardHindi(card);
+                      const cardEnglish = getCardEnglish(card);
                       return (
-                        <div
+                        <button
                           key={card.id}
+                          type="button"
                           onClick={() => handlePlaceBet(card.id)}
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border cursor-pointer pressable ${
-                            isWinner ? 'gold-shimmer-border bg-amber-200' : 'border-[#9b7247]/70 bg-[#f4e6c8]'
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border cursor-pointer pressable transition-all whitespace-nowrap flex-shrink-0 ${
+                            isWinner
+                              ? 'gold-shimmer-border bg-amber-200'
+                              : 'border-[#9b7247]/70 bg-[#f4e6c8] hover:bg-[#ecd9b5]'
                           }`}
                         >
-                          <img src={card.imageUrl} alt={card.name} className="w-5 h-5 rounded object-cover" />
-                          <span className="text-[10px] font-black text-[#3a200a]">{card.hindi}</span>
+                          <img src={card.imageUrl} alt={cardEnglish} className="w-5 h-5 rounded object-cover shadow-2xs" />
+                          <span className="text-[11px] font-black text-[#3a200a] whitespace-nowrap">{cardHindi}</span>
+                          <span className="text-[8px] font-bold text-amber-800 bg-amber-300/70 px-1 py-0.2 rounded font-mono-numbers">10×</span>
                           {userBet > 0 && (
-                            <span className="text-[8px] font-black bg-amber-600 text-white px-1 rounded-full">₹{userBet}</span>
+                            <span className="text-[8px] font-black bg-amber-600 text-white px-1.5 py-0.2 rounded-full font-mono-numbers">₹{userBet}</span>
                           )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                 </div>
 
                 {/* Last 3 Winning Draws */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black text-[#6d4621] uppercase flex items-center gap-1">
-                    <Trophy className="w-3 h-3 text-amber-700" />
-                    Last:
-                  </span>
-                  <div className="flex gap-1">
-                    {recentDraws.slice(0, 3).map((draw, idx) => {
-                      const c = arenaCards.find(x => x.id === draw.cardId) || PICTURE_CARDS.find(x => x.id === draw.cardId) || PICTURE_CARDS[0];
-                      return (
-                        <div key={idx} className="flex items-center gap-1 bg-[#e0c79c] border border-[#8c6239]/50 px-1.5 py-0.5 rounded text-[9px] font-bold text-[#3a200a]" title={`Round #${draw.roundNumber} winner`}>
-                          <img src={c.imageUrl} alt={c.name} className="w-3.5 h-3.5 rounded object-cover" />
-                          <span>{c.hindi}</span>
-                        </div>
-                      );
-                    })}
+                {recentDraws.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[9px] font-black text-[#6d4621] uppercase tracking-wider flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                      <Trophy className="w-3.5 h-3.5 text-amber-700" />
+                      Last:
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      {recentDraws.slice(0, 3).map((draw, idx) => {
+                        const c = arenaCards.find(x => x.id === draw.cardId) || PICTURE_CARDS.find(x => x.id === draw.cardId) || PICTURE_CARDS[0];
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 bg-[#ecd9b5] border border-[#8c6239]/50 px-2 py-0.5 rounded-md text-[10px] font-bold text-[#3a200a] whitespace-nowrap flex-shrink-0 shadow-2xs"
+                            title={`Round #${draw.roundNumber} winner`}
+                          >
+                            <img src={c.imageUrl} alt={getCardEnglish(c)} className="w-4 h-4 rounded object-cover shadow-2xs" />
+                            <span className="whitespace-nowrap">{getCardHindi(c)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -3257,7 +3326,7 @@ export default function MobileApp() {
                 10.0X PAYOUT UNLOCKED
               </span>
               <h3 className="text-2xl font-black text-white mt-3">
-                #{winModalData.card.id} {winModalData.card.name} ({winModalData.card.hindi}) Won!
+                #{winModalData.card.id} {getCardEnglish(winModalData.card)} ({getCardHindi(winModalData.card)}) Won!
               </h3>
               <p className="text-3xl font-mono-numbers font-black text-amber-400 mt-2 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">
                 +₹{winModalData.winAmount.toLocaleString('en-IN')}
