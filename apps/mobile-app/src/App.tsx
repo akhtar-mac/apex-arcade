@@ -954,8 +954,8 @@ export default function MobileApp() {
       setFundWizardOpen(true);
       return;
     }
-    if (roundStatus !== 'BETTING') {
-      showToast('Bets are locked for this round.');
+    if (roundStatus !== 'BETTING' || secondsRemaining <= 10) {
+      showToast('Bets close in the last 10 seconds.');
       return;
     }
     const roundId = roundIdRef.current;
