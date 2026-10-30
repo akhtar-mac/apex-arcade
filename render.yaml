@@ -20,7 +20,7 @@ services:
     plan: free
     region: oregon
     autoDeployTrigger: commit
-    buildCommand: npm ci && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
+    buildCommand: npm ci --include=dev && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
     # Free web services do not support preDeployCommand, so migrations run before the server starts.
     startCommand: npx prisma migrate deploy --schema apps/backend/prisma/schema.prisma && node apps/backend/dist/server.js
     healthCheckPath: /api/v1/health
