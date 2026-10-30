@@ -19,10 +19,10 @@ services:
     runtime: node
     plan: free
     region: oregon
-    autoDeployTrigger: "off"
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm --workspace=packages/shared-types run build && npm --workspace=packages/shared-utils run build && npx --workspace=apps/backend prisma generate && npm --workspace=apps/backend run build
-    preDeployCommand: npx prisma migrate deploy --schema apps/backend/prisma/schema.prisma
-    startCommand: node apps/backend/dist/server.js
+    # Free web services do not support preDeployCommand, so migrations run before the server starts.
+    startCommand: npx prisma migrate deploy --schema apps/backend/prisma/schema.prisma && node apps/backend/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
@@ -64,9 +64,19 @@ services:
   - type: web
     name: apex-web-landing
     runtime: static
-    autoDeployTrigger: "off"
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm --workspace=apps/web-landing run build
     staticPublishPath: apps/web-landing/dist
+    headers:
+      - path: /downloads/*.apk
+        name: Content-Type
+        value: application/vnd.android.package-archive
+      - path: /downloads/*.apk
+        name: Content-Disposition
+        value: attachment
+      - path: /downloads/*.apk
+        name: Cache-Control
+        value: public, max-age=300
     routes:
       - type: rewrite
         source: /*
@@ -78,11 +88,16 @@ services:
         value: https://apex-arcade-api.onrender.com
       - key: VITE_PLAYER_URL
         value: https://apex-mobile-app.onrender.com
+      # Signed release APK served from apps/web-landing/public/downloads (never a debug build).
+      - key: VITE_APP_DOWNLOAD_URL
+        value: /downloads/apex-arcade-1.1.apk
+      - key: VITE_APP_VERSION
+        value: "1.1"
 
   - type: web
     name: apex-mobile-app
     runtime: static
-    autoDeployTrigger: "off"
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm --workspace=apps/mobile-app run build
     staticPublishPath: apps/mobile-app/dist
     routes:
@@ -100,7 +115,7 @@ services:
   - type: web
     name: apex-web-admin
     runtime: static
-    autoDeployTrigger: "off"
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm --workspace=apps/web-admin run build
     staticPublishPath: apps/web-admin/dist
     routes:
@@ -116,7 +131,7 @@ services:
   - type: web
     name: apex-p2p-panel
     runtime: static
-    autoDeployTrigger: "off"
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm --workspace=apps/p2p-panel run build
     staticPublishPath: apps/p2p-panel/dist
     routes:
