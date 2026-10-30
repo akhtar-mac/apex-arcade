@@ -1799,6 +1799,10 @@ export default function MobileApp() {
                   )}
                 </button>
 
+                <p className="text-[11px] text-center text-amber-200/70">
+                  Demo: 9999999999, code 121212. That balance is play money and cannot be withdrawn.
+                </p>
+
                 {demoLoginEnabled && (
                   <div className="pt-2 space-y-2">
                     <div className="relative flex py-1 items-center">

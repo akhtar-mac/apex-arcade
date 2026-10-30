@@ -47,6 +47,18 @@ authRouter.post('/verify-otp', authRateLimiter, async (req: Request, res: Respon
       return res.status(400).json({ success: false, error: 'Invalid or expired verification code.' });
     }
 
+    if (AuthService.isShowcasePhone(cleanPhone)) {
+      const showcase = await Ledger.ensureShowcasePlayer(cleanPhone);
+      const tokens = AuthService.generateTokenPair(showcase.user.id, showcase.user.phoneNumber, showcase.user.role);
+      attachSession(res, tokens.accessToken);
+      return res.json({
+        success: true,
+        isNewUser: false,
+        message: 'Demo account ready. Play money cannot be withdrawn.',
+        data: { user: publicUser(showcase.user), wallet: showcase.wallet, ...tokens }
+      });
+    }
+
     const user = await Ledger.findUserByPhone(cleanPhone);
     if (user) {
       try {

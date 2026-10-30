@@ -293,6 +293,30 @@ export class Ledger {
     return { user: DB.memory.users.get(user.id), wallet: this.walletOf(user.id) };
   }
 
+  static async ensureShowcasePlayer(phoneNumber: string) {
+    let user = await this.findUserByPhone(phoneNumber);
+    if (user && user.role !== 'USER') {
+      throw new Error('This phone is a desk login.');
+    }
+    if (!user) {
+      const passwordHash = await bcrypt.hash(crypto.randomUUID(), 10);
+      const created = await this.createUser({
+        phoneNumber,
+        passwordHash,
+        role: 'USER',
+        fullName: 'Demo Player',
+        state: 'Maharashtra',
+        ageConfirmed: true,
+        isDemo: true
+      });
+      user = created.user;
+    }
+    if (!user) throw new Error('Demo account could not be opened.');
+    user = await this.markAsDemo(user.id);
+    const wallet = await this.ensureShowcaseFunds(user.id, 100000);
+    return { user, wallet };
+  }
+
   static async markAsDemo(userId: string) {
     const user = await getPrisma().user.update({
       where: { id: userId },

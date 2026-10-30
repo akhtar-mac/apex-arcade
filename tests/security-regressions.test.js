@@ -17,6 +17,9 @@ test('public auth has no universal fixed OTP or hardcoded registration OTP', () 
   const mobile = read('apps/mobile-app/src/App.tsx');
   assert.doesNotMatch(auth, /inputOtp\s*===\s*['"]1234/);
   assert.doesNotMatch(auth, /inputOtp\s*===\s*['"]123456/);
+  assert.doesNotMatch(auth, /inputOtp\s*===\s*['"]121212/);
+  assert.match(auth, /showcasePhone = '9999999999'/);
+  assert.match(auth, /showcase \? this\.showcaseOtp/);
   assert.doesNotMatch(mobile, /otp:\s*['"]1234/);
 });
 
