@@ -11,3 +11,10 @@ apps/mobile-app/android/app/build/
 .netlify/
 playwright-report/
 test-results/
+
+# Android signing material stays outside Git
+*.jks
+*.keystore
+keystore.env
+keystore.properties
+/apex-arcade-*.apk

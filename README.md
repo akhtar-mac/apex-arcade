@@ -34,6 +34,17 @@ cd apps/mobile-app/android && ./gradlew assembleDebug
 
 Do not commit a keystore, and do not put a debug APK on the website.
 
+### Publishing a signed release APK
+
+Only a release APK signed with the organization keystore (kept outside Git) may be published. The landing site serves it from `apps/web-landing/public/downloads/` and shows the download button only when `VITE_APP_DOWNLOAD_URL` is set at build time.
+
+```bash
+# keystore + passwords live outside the repo, e.g. ~/apex-arcade-signing/
+scripts/build-android-release.sh   # builds, zipaligns, signs, verifies, copies to public/downloads
+```
+
+Then update `VITE_APP_DOWNLOAD_URL=/downloads/apex-arcade-<version>.apk` and `VITE_APP_VERSION=<version>` in `apps/web-landing/.env.production` (Render env vars on `apex-web-landing` override it) and commit the APK with it so the link and the file ship in the same deploy.
+
 ## Checks
 
 ```bash
