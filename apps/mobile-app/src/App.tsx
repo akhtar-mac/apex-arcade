@@ -340,7 +340,7 @@ export default function MobileApp() {
   const isAppAllowed = isCapacitorNative || isLocalHost;
   const API_BASE = import.meta.env.VITE_API_URL
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
-  const demoLoginEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN !== 'false';
+  const demoLoginEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
 
   useEffect(() => {
     fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' })
