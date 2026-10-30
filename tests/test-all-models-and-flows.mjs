@@ -24,8 +24,18 @@ import Redis from 'ioredis';
 import * as crypto from 'crypto';
 
 const BASE_URL = process.env.API_BASE || 'http://127.0.0.1:4000';
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://arcade_user:arcade_secure_password_2026@localhost:5432/arcade_db?schema=public';
-const REDIS_URL = process.env.REDIS_URL || 'redis://:arcade_redis_secret_2026@localhost:6379';
+// Credentials come from the environment (see .env.example / docker-compose.yml); none are hardcoded here.
+const DATABASE_URL = process.env.DATABASE_URL
+  || (process.env.POSTGRES_PASSWORD
+    ? `postgresql://${process.env.POSTGRES_USER || 'arcade_user'}:${encodeURIComponent(process.env.POSTGRES_PASSWORD)}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'arcade_db'}?schema=public`
+    : '');
+const REDIS_URL = process.env.REDIS_URL
+  || `redis://${process.env.REDIS_PASSWORD ? `:${encodeURIComponent(process.env.REDIS_PASSWORD)}@` : ''}${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`;
+
+if (!DATABASE_URL) {
+  console.error('Set DATABASE_URL (or POSTGRES_PASSWORD for the local docker-compose database) before running this suite.');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
 const redis = new Redis(REDIS_URL);
@@ -65,7 +75,10 @@ async function resetRateLimits() {
     if (keys.length > 0) {
       await redis.del(...keys);
     }
-  } catch {}
+  } catch (error) {
+    // Redis may be unavailable locally; rate-limit reset is best-effort.
+    console.warn(`  (skipping rate-limit reset: ${error?.message || error})`);
+  }
 }
 
 async function runAllTests() {

@@ -1,8 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 import { PICTURE_CARDS } from '../packages/shared-types/src/index.js';
 
+// Credentials come from the environment (see .env.example / docker-compose.yml); none are hardcoded here.
+const DATABASE_URL = process.env.DATABASE_URL
+  || (process.env.POSTGRES_PASSWORD
+    ? `postgresql://${process.env.POSTGRES_USER || 'arcade_user'}:${encodeURIComponent(process.env.POSTGRES_PASSWORD)}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'arcade_db'}?schema=public`
+    : '');
+
+if (!DATABASE_URL) {
+  console.error('Set DATABASE_URL (or POSTGRES_PASSWORD for the local docker-compose database) before running this script.');
+  process.exit(1);
+}
+
 const prisma = new PrismaClient({
-  datasources: { db: { url: process.env.DATABASE_URL || 'postgresql://arcade_user:arcade_secure_password_2026@localhost:5432/arcade_db?schema=public' } }
+  datasources: { db: { url: DATABASE_URL } }
 });
 
 async function run() {
