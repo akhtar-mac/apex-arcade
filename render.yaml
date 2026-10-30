@@ -57,7 +57,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_PHONE
-        sync: false
+        value: "9000001111"
       - key: ADMIN_PASSWORD
         sync: false
 

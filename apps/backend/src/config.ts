@@ -70,8 +70,11 @@ function assertProductionLaunch(): void {
   const provider = (process.env.SMS_PROVIDER || '').trim().toUpperCase();
   const smsReady = (provider === 'FAST2SMS' && Boolean(process.env.FAST2SMS_API_KEY?.trim()))
     || (provider === 'MSG91' && Boolean(process.env.MSG91_AUTH_KEY?.trim()));
-  if (!smsReady) {
+  const regulated = process.env.ENABLE_REGULATED_FEATURES === 'true';
+  if (regulated && !smsReady) {
     failures.push('Set SMS_PROVIDER to FAST2SMS or MSG91 and add that provider key.');
+  } else if (!smsReady) {
+    console.warn('[BOOT] SMS is not configured. Only the play-money demo number can sign in until a provider is added.');
   }
   const origins = (process.env.CORS_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
   const publicHttps = origins.filter((origin) => origin.startsWith('https://') && !/localhost|127\.0\.0\.1/.test(origin));
@@ -79,7 +82,7 @@ function assertProductionLaunch(): void {
     failures.push('CORS_ORIGINS must include the public https origin.');
   }
   const adminPhone = (process.env.ADMIN_PHONE || '').replace(/\D/g, '').slice(-10);
-  if (adminPhone.length !== 10 || adminPhone === '9999999999') {
+  if (adminPhone === '9999999999' || (regulated && adminPhone.length !== 10)) {
     failures.push('ADMIN_PHONE must be an explicitly configured non-default 10-digit phone.');
   }
   const adminPassword = (process.env.ADMIN_PASSWORD || '').trim();

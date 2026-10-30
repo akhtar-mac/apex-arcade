@@ -75,6 +75,7 @@ test('demo login is separate from demo OTP and public deployment fails closed', 
   assert.match(config, /enableDemoLogin:\s*!isPublicDeployment/);
   assert.match(config, /ENABLE_DEMO_LOGIN must be false on public deployments/);
   assert.match(config, /ADMIN_PHONE must be an explicitly configured non-default/);
+  assert.match(config, /if \(regulated && !smsReady\)/);
   assert.match(authRoutes, /Config\.enableDemoLogin/);
 });
 

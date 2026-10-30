@@ -46,7 +46,10 @@ export class Ledger {
 
   static async ensureAdmin() {
     const prisma = getPrisma();
-    const phone = (process.env.ADMIN_PHONE || '9999999999').replace(/\D/g, '').slice(-10);
+    const showcasePhone = '9999999999';
+    const configured = (process.env.ADMIN_PHONE || '').replace(/\D/g, '').slice(-10);
+    const publicDesk = process.env.NODE_ENV === 'production' || process.env.DEPLOY_ENV === 'staging';
+    const phone = configured.length === 10 ? configured : (publicDesk ? '9000001111' : showcasePhone);
     const password = process.env.ADMIN_PASSWORD || '';
     const existing = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
 
@@ -69,11 +72,17 @@ export class Ledger {
       return;
     }
 
+    const data: { passwordHash?: string; fullName?: string; upiId?: string | null; phoneNumber?: string } = {};
     if (password) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      const data: { passwordHash: string; fullName?: string; upiId?: string | null } = { passwordHash };
+      data.passwordHash = await bcrypt.hash(password, 10);
       if (!existing.fullName || existing.fullName === 'Apex Player') data.fullName = 'Desk Admin';
       if (existing.upiId === 'apexadmin@bank') data.upiId = null;
+    }
+    if (existing.phoneNumber === showcasePhone && phone !== showcasePhone) {
+      const taken = await prisma.user.findUnique({ where: { phoneNumber: phone } });
+      if (!taken) data.phoneNumber = phone;
+    }
+    if (Object.keys(data).length > 0) {
       await prisma.user.update({ where: { id: existing.id }, data });
     }
   }
