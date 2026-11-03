@@ -52,6 +52,7 @@ export default function LandingApp() {
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
   const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? `http://${window.location.hostname}:4000` : 'https://apex-arcade-api.onrender.com');
+  const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (isLocalHost ? `http://${window.location.hostname}:5174` : 'https://apex-mobile-app.onrender.com');
   const appDownloadUrl = (import.meta as any).env?.VITE_APP_DOWNLOAD_URL || '';
   const appVersion = (import.meta as any).env?.VITE_APP_VERSION || '';
   const appDownloadName = appVersion ? `Apex-Arcade-${appVersion}.apk` : 'Apex-Arcade-App.apk';
@@ -223,21 +224,20 @@ export default function LandingApp() {
 
           {/* CTA Buttons */}
           <div className="float-up delay-300 flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
-            <button
-              onClick={() => setDownloadModal(true)}
+            <a
+              href={playerUrl}
               className="glow-btn w-full sm:w-auto bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-amber-500/25 border border-amber-300"
             >
-              <Download className="w-5 h-5" />
-              Download App
-            </button>
-            <a
-              href="#mechanics"
+              <Play className="w-5 h-5 fill-black" />
+              Play Online
+            </a>
+            <button
+              onClick={() => setDownloadModal(true)}
               className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-[#1c150e] hover:bg-[#261d15] border border-amber-500/30 font-bold text-sm text-amber-200 transition flex items-center justify-center gap-2 hover:text-white"
             >
-              <Play className="w-4 h-4 text-amber-400" />
-              How To Play & Win
-              <ArrowRight className="w-4 h-4 text-amber-400/60" />
-            </a>
+              <Download className="w-4 h-4 text-amber-400" />
+              Download Android APK
+            </button>
           </div>
 
           {/* Hero Stats Bar */}
@@ -613,10 +613,10 @@ export default function LandingApp() {
                   href={appDownloadUrl}
                   download={appDownloadName}
                   onClick={() => setDownloadModal(false)}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#0df59d] to-[#00e5ff] text-black font-black text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-emerald-500/20"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition shadow-xl shadow-amber-500/20 border border-amber-300"
                 >
                   <Download className="w-4 h-4" />
-                  Download Signed App
+                  Download Android APK ({appVersion ? `v${appVersion}` : '1.1'})
                 </a>
               ) : (
                 <button
@@ -627,6 +627,13 @@ export default function LandingApp() {
                   Release Pending
                 </button>
               )}
+              <a
+                href={playerUrl}
+                className="w-full py-3 rounded-2xl bg-[#1c150e] hover:bg-[#261d15] text-amber-200 font-bold text-xs flex items-center justify-center gap-2 border border-amber-500/30 transition hover:text-white"
+              >
+                <Play className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                Play Instantly in Browser (No Download Required)
+              </a>
             </div>
           </div>
         </div>

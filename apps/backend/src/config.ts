@@ -41,7 +41,7 @@ export const Config = {
     'http://localhost:5176', 'http://127.0.0.1:5176'
   ].join(','))
     .split(',')
-    .map(origin => origin.trim())
+    .map(origin => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean),
 
   smsProvider: process.env.SMS_PROVIDER || '',
@@ -100,12 +100,17 @@ function assertProductionLaunch(): void {
 
 export function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
-  if (origin === 'capacitor://localhost' || origin === 'http://localhost' || origin === 'https://localhost') return true;
-  if (Config.corsOrigins.includes(origin)) return true;
-  for (const pattern of Config.corsOrigins) {
+  const cleanOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+  if (cleanOrigin === 'capacitor://localhost' || cleanOrigin === 'http://localhost' || cleanOrigin === 'https://localhost') return true;
+  if (Config.corsOrigins.some(o => o.toLowerCase() === cleanOrigin)) return true;
+  for (const rawPattern of Config.corsOrigins) {
+    const pattern = rawPattern.toLowerCase();
     if (pattern.startsWith('https://*.')) {
-      const suffix = pattern.slice('https://*'.length);
-      if (origin.startsWith('https://') && origin.endsWith(suffix)) return true;
+      const baseDomain = pattern.slice('https://*.'.length);
+      const suffix = '.' + baseDomain;
+      if (cleanOrigin === `https://${baseDomain}` || (cleanOrigin.startsWith('https://') && cleanOrigin.endsWith(suffix))) {
+        return true;
+      }
     }
   }
   return false;

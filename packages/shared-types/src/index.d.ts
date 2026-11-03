@@ -51,31 +51,67 @@ export interface RoomTier {
 export declare const ROOM_TIERS: RoomTier[];
 export declare const PhoneOtpRequestSchema: z.ZodObject<{
     phoneNumber: z.ZodString;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    phoneNumber: string;
+}, {
+    phoneNumber: string;
+}>;
 export type PhoneOtpRequest = z.infer<typeof PhoneOtpRequestSchema>;
 export declare const PhoneOtpVerifySchema: z.ZodObject<{
     phoneNumber: z.ZodString;
     otp: z.ZodString;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    phoneNumber: string;
+    otp: string;
+}, {
+    phoneNumber: string;
+    otp: string;
+}>;
 export type PhoneOtpVerify = z.infer<typeof PhoneOtpVerifySchema>;
 export declare const RegisterUserSchema: z.ZodObject<{
     phoneNumber: z.ZodString;
     password: z.ZodString;
     otp: z.ZodString;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    phoneNumber: string;
+    otp: string;
+    password: string;
+}, {
+    phoneNumber: string;
+    otp: string;
+    password: string;
+}>;
 export type RegisterUser = z.infer<typeof RegisterUserSchema>;
 export declare const LoginUserSchema: z.ZodObject<{
     phoneNumber: z.ZodString;
     password: z.ZodString;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    phoneNumber: string;
+    password: string;
+}, {
+    phoneNumber: string;
+    password: string;
+}>;
 export type LoginUser = z.infer<typeof LoginUserSchema>;
 export declare const JwtPayloadSchema: z.ZodObject<{
     userId: z.ZodString;
     phoneNumber: z.ZodString;
-    role: z.ZodEnum<typeof Role>;
+    role: z.ZodNativeEnum<typeof Role>;
     iat: z.ZodOptional<z.ZodNumber>;
     exp: z.ZodOptional<z.ZodNumber>;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    phoneNumber: string;
+    userId: string;
+    role: Role;
+    iat?: number | undefined;
+    exp?: number | undefined;
+}, {
+    phoneNumber: string;
+    userId: string;
+    role: Role;
+    iat?: number | undefined;
+    exp?: number | undefined;
+}>;
 export type JwtPayload = z.infer<typeof JwtPayloadSchema>;
 export interface GameRoomDto {
     id: string;
@@ -102,7 +138,17 @@ export declare const PlaceBetSchema: z.ZodObject<{
     roundId: z.ZodString;
     chosenCard: z.ZodNumber;
     amount: z.ZodNumber;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    roomId: string;
+    roundId: string;
+    chosenCard: number;
+    amount: number;
+}, {
+    roomId: string;
+    roundId: string;
+    chosenCard: number;
+    amount: number;
+}>;
 export type PlaceBetRequest = z.infer<typeof PlaceBetSchema>;
 export interface BetResultDto {
     betId: string;
@@ -115,7 +161,11 @@ export interface BetResultDto {
 }
 export declare const DepositIntentSchema: z.ZodObject<{
     amount: z.ZodNumber;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    amount: number;
+}, {
+    amount: number;
+}>;
 export type DepositIntentRequest = z.infer<typeof DepositIntentSchema>;
 export interface DepositIntentResponse {
     transactionId: string;
@@ -130,23 +180,58 @@ export declare const SubmitUtrSchema: z.ZodObject<{
     utrNumber: z.ZodString;
     amount: z.ZodNumber;
     screenshotBase64: z.ZodOptional<z.ZodString>;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    amount: number;
+    utrNumber: string;
+    transactionId?: string | undefined;
+    screenshotBase64?: string | undefined;
+}, {
+    amount: number;
+    utrNumber: string;
+    transactionId?: string | undefined;
+    screenshotBase64?: string | undefined;
+}>;
 export type SubmitUtrRequest = z.infer<typeof SubmitUtrSchema>;
-export declare const WithdrawRequestSchema: z.ZodObject<{
+export declare const WithdrawRequestSchema: z.ZodEffects<z.ZodObject<{
     amount: z.ZodNumber;
     upiId: z.ZodOptional<z.ZodString>;
     bankAccount: z.ZodOptional<z.ZodString>;
     ifscCode: z.ZodOptional<z.ZodString>;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    amount: number;
+    upiId?: string | undefined;
+    bankAccount?: string | undefined;
+    ifscCode?: string | undefined;
+}, {
+    amount: number;
+    upiId?: string | undefined;
+    bankAccount?: string | undefined;
+    ifscCode?: string | undefined;
+}>, {
+    amount: number;
+    upiId?: string | undefined;
+    bankAccount?: string | undefined;
+    ifscCode?: string | undefined;
+}, {
+    amount: number;
+    upiId?: string | undefined;
+    bankAccount?: string | undefined;
+    ifscCode?: string | undefined;
+}>;
 export type WithdrawRequest = z.infer<typeof WithdrawRequestSchema>;
 export declare const P2PActionSchema: z.ZodObject<{
     transactionId: z.ZodString;
-    action: z.ZodEnum<{
-        APPROVE: "APPROVE";
-        REJECT: "REJECT";
-    }>;
+    action: z.ZodEnum<["APPROVE", "REJECT"]>;
     reason: z.ZodOptional<z.ZodString>;
-}, z.core.$strip>;
+}, "strip", z.ZodTypeAny, {
+    transactionId: string;
+    action: "APPROVE" | "REJECT";
+    reason?: string | undefined;
+}, {
+    transactionId: string;
+    action: "APPROVE" | "REJECT";
+    reason?: string | undefined;
+}>;
 export type P2PActionRequest = z.infer<typeof P2PActionSchema>;
 export interface RoundTickPayload {
     roomId: string;

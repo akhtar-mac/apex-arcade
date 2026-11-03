@@ -337,7 +337,7 @@ export default function MobileApp() {
     || window.location.protocol === 'capacitor:'
   );
   const isLocalHost = backendHost === 'localhost' || backendHost === '127.0.0.1' || backendHost.startsWith('192.168.');
-  const isAppAllowed = isCapacitorNative || isLocalHost;
+  const isAppAllowed = true; // Fully enabled for mobile browser, PWA, and Capacitor native shell
   const API_BASE = import.meta.env.VITE_API_URL
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
   const demoLoginEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
@@ -1775,6 +1775,7 @@ export default function MobileApp() {
                     <span className="text-amber-300 text-sm font-black mr-3 border-r border-amber-500/30 pr-3">+91</span>
                     <input
                       type="tel"
+                      inputMode="numeric"
                       maxLength={10}
                       value={phoneNumber}
                       onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
@@ -1842,6 +1843,7 @@ export default function MobileApp() {
                   </div>
                   <input
                     type="text"
+                    inputMode="numeric"
                     maxLength={6}
                     value={otpInput}
                     onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
@@ -2004,49 +2006,34 @@ export default function MobileApp() {
   return (
     <div className="min-h-[100dvh] w-full bg-[#0c0a08] text-[#fdf6e7] flex flex-col justify-between max-w-md mx-auto relative select-none pb-24">
       {/* ── TOP APP BAR ── */}
-      <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 flex items-center justify-between shadow-md">
+      <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/25 px-2.5 xs:px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 sm:pb-3 flex items-center justify-between shadow-md gap-2">
         {/* Brand */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/40 flex items-center justify-center font-black text-amber-400 text-sm overflow-hidden shadow-inner">
+        <div className="flex items-center gap-2 min-w-0 shrink">
+          <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/40 flex items-center justify-center font-black text-amber-400 text-sm overflow-hidden shadow-inner shrink-0">
             {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : brand.shortName.slice(0, 2)}
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm tracking-tight text-amber-100 font-serif">{brand.shortName}</span>
-              <span className="text-[10px] font-mono-numbers px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <span className="font-black text-xs sm:text-sm tracking-tight text-amber-100 font-serif truncate">{brand.shortName}</span>
+              <span className="text-[9px] font-mono-numbers px-1 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold shrink-0">
                 10X
               </span>
             </div>
-            <p className="text-[10px] text-amber-200/70 font-mono-numbers">Round #{roundNumber}</p>
+            <p className="text-[9px] sm:text-[10px] text-amber-200/70 font-mono-numbers leading-none truncate">Round #{roundNumber}</p>
           </div>
         </div>
 
         {/* Balance & Actions */}
-        <div className="flex items-center gap-2">
-          {/* Verified Depositor Status Badge */}
-          {isVerifiedDepositor ? (
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-black">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>VERIFIED</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => setDepositModalOpen(true)}
-              className="hidden xs:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#221810] border border-amber-500/25 text-[9px] text-amber-200/80 hover:text-white"
-            >
-              <span>Get Verified</span>
-            </button>
-          )}
-
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Balance Pill */}
           <div
             onClick={() => setActiveTab('profile')}
-            className={`px-3 py-1.5 rounded-xl bg-[#1c150e] border border-amber-500/30 flex items-center gap-1.5 cursor-pointer pressable transition-colors ${
+            className={`px-2.5 py-1.5 rounded-xl bg-[#1c150e] border border-amber-500/30 flex items-center gap-1.5 cursor-pointer pressable transition-colors ${
               balanceFlash ? 'border-amber-400 bg-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.5)]' : ''
             }`}
           >
-            <Wallet className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-mono-numbers font-bold text-xs text-amber-200">
+            <Wallet className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="font-mono-numbers font-bold text-xs text-amber-200 whitespace-nowrap">
               ₹{balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -2054,25 +2041,16 @@ export default function MobileApp() {
           {/* Deposit Trigger */}
           <button
             onClick={() => setDepositModalOpen(true)}
-            className="w-8 h-8 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black flex items-center justify-center font-black text-base pressable shadow-md shadow-amber-500/20 border border-amber-300"
+            className="w-8 h-8 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black flex items-center justify-center font-black text-base pressable shadow-md shadow-amber-500/20 border border-amber-300 shrink-0"
             title="Add Cash"
           >
             +
           </button>
 
-          {/* Game Rules & Help */}
-          <button
-            onClick={() => setHelpRulesModalOpen(true)}
-            className="w-8 h-8 rounded-xl bg-[#1c150e] border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center pressable shadow-inner"
-            title="How to Play & 14 Picture Rules"
-          >
-            <HelpCircle className="w-4 h-4 text-amber-400" />
-          </button>
-
           {/* 24/7 Live Support Chat */}
           <button
             onClick={() => setSupportModalOpen(true)}
-            className="w-8 h-8 rounded-xl bg-[#1c150e] border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center pressable relative shadow-inner"
+            className="w-8 h-8 rounded-xl bg-[#1c150e] border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center pressable relative shadow-inner shrink-0"
             title="24/7 Live Support Desk"
           >
             <Headphones className="w-4 h-4 text-amber-400" />
@@ -2082,7 +2060,8 @@ export default function MobileApp() {
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}
-            className="w-8 h-8 rounded-xl bg-[#1c150e] border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center pressable shadow-inner"
+            className="w-8 h-8 rounded-xl bg-[#1c150e] border border-amber-500/30 text-amber-300 hover:text-white flex items-center justify-center pressable shadow-inner shrink-0"
+            title="Sound Effects"
           >
             {soundOn ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4 text-amber-200/50" />}
           </button>
@@ -2216,9 +2195,9 @@ export default function MobileApp() {
             </div>
 
             {/* Hostess Portrait & Revealing Card Stage */}
-            <div className="relative z-10 p-3 flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative z-10 p-2.5 sm:p-3 flex flex-row items-stretch gap-2.5 sm:gap-3">
               {/* Hostess Portrait in Mughal Arch */}
-              <div className="relative w-28 h-32 sm:w-32 sm:h-36 shrink-0 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-[0_8px_20px_rgba(0,0,0,0.6)] bg-[#18110a]">
+              <div className="relative w-24 h-28 sm:w-28 sm:h-32 shrink-0 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-[0_8px_20px_rgba(0,0,0,0.6)] bg-[#18110a]">
                 <img
                   src={selectedRoom.hostessImageUrl || '/hostess.jpg'}
                   alt={selectedRoom.hostessName || 'Royal Hostess'}
@@ -2226,14 +2205,14 @@ export default function MobileApp() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
                 <div className="absolute bottom-1 inset-x-0 text-center">
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/90 text-black text-[9px] font-black tracking-wide uppercase shadow truncate max-w-[90%] inline-block">
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500/90 text-black text-[8px] sm:text-[9px] font-black tracking-wide uppercase shadow truncate max-w-[90%] inline-block">
                     {selectedRoom.hostessName || 'Hostess Maya'}
                   </span>
                 </div>
               </div>
 
               {/* Center Stage: Revealing Card / Active Sealed Card */}
-              <div className="flex-1 w-full relative parchment-texture parchment-border rounded-2xl p-2.5 flex flex-col items-center justify-center text-center shadow-lg overflow-hidden min-h-[135px]">
+              <div className="flex-1 min-w-0 relative parchment-texture parchment-border rounded-2xl p-2 flex flex-col items-center justify-center text-center shadow-lg overflow-hidden min-h-[112px]">
                 {/* Filigree corner decorations */}
                 <div className="absolute top-1 left-1 text-amber-900/50 text-[10px] select-none">❧</div>
                 <div className="absolute top-1 right-1 text-amber-900/50 text-[10px] select-none">☙</div>
@@ -2244,17 +2223,17 @@ export default function MobileApp() {
                   // Revealed Winner Card
                   <div className="relative flex flex-col items-center animate-slide-up w-full">
                     {/* Symbol Confirmed Banner */}
-                    <div className="px-3 py-0.5 mb-1.5 rounded-full bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-amber-100 border border-amber-300/80 font-black text-[10px] tracking-widest uppercase shadow-md animate-pulse">
+                    <div className="px-3 py-0.5 mb-1 rounded-full bg-gradient-to-r from-red-700 via-amber-600 to-red-700 text-amber-100 border border-amber-300/80 font-black text-[9px] sm:text-[10px] tracking-widest uppercase shadow-md animate-pulse">
                       ★ SYMBOL CONFIRMED ★
                     </div>
                     
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.6)] bg-black/40">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.6)] bg-black/40">
                       <img
                         src={(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0]).imageUrl}
                         alt="Winning Card"
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/75 text-amber-300 text-[10px] font-black py-0.5">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/75 text-amber-300 text-[9px] sm:text-[10px] font-black py-0.5">
                         {getCardHindi(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0])}
                       </div>
                     </div>
@@ -2263,35 +2242,35 @@ export default function MobileApp() {
                       <span className="text-xs font-black text-amber-950 font-serif">
                         #{getCardEnglish(PICTURE_CARDS.find(c => c.id === winningCard) || PICTURE_CARDS[0])}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-600 text-white font-mono-numbers">
+                      <span className="px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black bg-amber-600 text-white font-mono-numbers">
                         {arenaMultiplier}× Payout
                       </span>
                     </div>
                   </div>
                 ) : (
                   // Sealed / Betting Round Active Card
-                  <div className="relative flex flex-col items-center justify-center w-full py-1">
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-amber-700/60 bg-[#9a764d] shadow-inner flex items-center justify-center group">
+                  <div className="relative flex flex-col items-center justify-center w-full py-0.5">
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 border-amber-700/60 bg-[#9a764d] shadow-inner flex items-center justify-center group">
                       {/* Cloud / Mystery reveal layer */}
                       <div className="absolute inset-0 bg-gradient-to-br from-amber-200/40 via-amber-700/50 to-amber-950/70" />
                       <div className="absolute inset-0 flex items-center justify-center opacity-40 cloud-veil">
-                        <span className="text-3xl select-none">☁️</span>
+                        <span className="text-2xl sm:text-3xl select-none">☁️</span>
                       </div>
-                      <div className="relative z-10 w-12 h-12 rounded-full border-2 border-amber-400/90 bg-amber-900/90 flex flex-col items-center justify-center shadow-lg">
-                        <Lock className="w-4 h-4 text-amber-300" />
-                        <span className="text-[7px] font-black text-amber-200 tracking-tighter">SEALED</span>
+                      <div className="relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-amber-400/90 bg-amber-900/90 flex flex-col items-center justify-center shadow-lg">
+                        <Lock className="w-3.5 h-3.5 text-amber-300" />
+                        <span className="text-[6px] sm:text-[7px] font-black text-amber-200 tracking-tighter">SEALED</span>
                       </div>
                       {/* Multiplier Tag */}
-                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full multiplier-tag text-[8px] z-20">
+                      <div className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded-full multiplier-tag text-[7px] z-20">
                         25K
                       </div>
                     </div>
 
-                    <div className="mt-1.5 text-center">
-                      <div className="text-[11px] font-black text-amber-950 uppercase tracking-tight">
+                    <div className="mt-1 text-center">
+                      <div className="text-[10px] sm:text-[11px] font-black text-amber-950 uppercase tracking-tight">
                         {roundStatus === 'BETTING' ? '🎲 Card Sealed Before Bets' : '🔒 Bets Locked • Revealing'}
                       </div>
-                      <div className="text-[9px] font-semibold text-amber-900/80 font-mono-numbers">
+                      <div className="text-[8px] sm:text-[9px] font-semibold text-amber-900/80 font-mono-numbers">
                         Round #{roundNumber} • Provably Fair SHA-256
                       </div>
                     </div>
@@ -2302,25 +2281,25 @@ export default function MobileApp() {
           </div>
 
           {/* 12 Classic Picture Cards Board (Pappu Playing Pictures Vintage Parchment Grid) */}
-          <div className="parchment-texture parchment-border p-3 rounded-2xl relative shadow-2xl">
+          <div className="parchment-texture parchment-border p-2.5 sm:p-3 rounded-2xl relative shadow-2xl">
             {/* Header: PAPPU Playing Pictures Ribbon */}
             <div className="flex items-center justify-between pb-2 mb-2 border-b-2 border-[#8c6239]/40">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-[#5a3818] tracking-wider uppercase font-serif">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-xs sm:text-sm font-black text-[#5a3818] tracking-wider uppercase font-serif">
                   PAPPU PLAYING PICTURES
                 </span>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#8c6239] text-amber-100 shadow">
+                <span className="text-[8px] sm:text-[9px] font-black px-1.5 sm:px-2 py-0.5 rounded-full bg-[#8c6239] text-amber-100 shadow">
                   12 CARDS
                 </span>
               </div>
-              <div className="text-[10px] font-bold text-[#6d4621] font-mono-numbers">
+              <div className="text-[9px] sm:text-[10px] font-bold text-[#6d4621] font-mono-numbers">
                 Tap to place ₹{selectedChip}
               </div>
             </div>
 
             {/* 4 Columns x 3 Rows Classic 12 Picture Cards Grid */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
-              {arenaCards.slice(0, 12).map((card, idx) => {
+            <div className="grid grid-cols-4 gap-1.5 xs:gap-2 sm:gap-2.5">
+              {arenaCards.slice(0, 12).map((card) => {
                 const userBet = placedBets[card.id] || 0;
                 const isWinner = winningCard === card.id;
 
@@ -2340,7 +2319,7 @@ export default function MobileApp() {
                   <div
                     key={card.id}
                     onClick={() => handlePlaceBet(card.id)}
-                    className={`relative rounded-xl transition-all duration-200 cursor-pointer pressable overflow-hidden flex flex-col items-center justify-between p-1.5 min-h-[110px] sm:min-h-[120px] ${
+                    className={`relative rounded-xl transition-all duration-200 cursor-pointer pressable overflow-hidden flex flex-col items-center justify-between p-1 sm:p-1.5 min-h-[105px] xs:min-h-[112px] sm:min-h-[120px] ${
                       isWinner
                         ? 'gold-shimmer-border scale-105 z-20 bg-amber-200/90'
                         : userBet > 0
@@ -2349,22 +2328,18 @@ export default function MobileApp() {
                     }`}
                   >
                     {/* Card Header: Index, Hindi Name & Multiplier Tag */}
-                    <div className="w-full flex items-center justify-between text-[9px] font-bold text-[#6d4621] z-10 px-0.5 leading-none mb-0.5">
-                      <div className="flex items-center gap-1 overflow-hidden">
-                        <span className="font-mono-numbers text-amber-900 font-black">#{card.id}</span>
-                        <span className="font-serif text-[#451a03] font-black text-[9px] truncate">{getCardHindi(card)}</span>
+                    <div className="w-full flex items-center justify-between text-[8px] xs:text-[9px] font-bold text-[#6d4621] z-10 px-0.5 leading-none">
+                      <div className="flex items-center gap-0.5 min-w-0 overflow-hidden">
+                        <span className="font-mono-numbers text-amber-900 font-black shrink-0">#{card.id}</span>
+                        <span className="font-serif text-[#451a03] font-black truncate">{getCardHindi(card)}</span>
                       </div>
-                      {tag ? (
-                        <span className="shrink-0 px-1 py-0.5 rounded-full multiplier-tag text-[8px] font-black leading-none shadow-sm">
-                          {tag}
-                        </span>
-                      ) : (
-                        <span className="shrink-0 text-[8px] font-bold text-amber-900/50 font-mono-numbers">10×</span>
-                      )}
+                      <span className="shrink-0 px-1 py-0.2 rounded-full multiplier-tag text-[7px] xs:text-[8px] font-black leading-none shadow-xs">
+                        {tag || '10×'}
+                      </span>
                     </div>
 
                     {/* Card Illustration in Parchment Frame */}
-                    <div className="relative w-16 h-16 sm:w-18 sm:h-18 my-0.5 rounded-lg overflow-hidden flex items-center justify-center bg-[#ecd3a5] border border-[#a87a4c]/50 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                    <div className="relative w-full max-w-[56px] xs:max-w-[62px] sm:max-w-[68px] aspect-square my-0.5 rounded-lg overflow-hidden flex items-center justify-center bg-[#ecd3a5] border border-[#a87a4c]/50 shadow-inner group-hover:scale-105 transition-transform duration-300">
                       <img
                         src={card.imageUrl}
                         alt={getCardEnglish(card)}
@@ -2375,20 +2350,18 @@ export default function MobileApp() {
                           if (fallback) (fallback as HTMLElement).style.display = 'block';
                         }}
                       />
-                      <span className="text-2xl hidden">{card.symbol}</span>
+                      <span className="text-xl hidden">{card.symbol}</span>
+                      {userBet > 0 && (
+                        <div className="absolute inset-x-0 bottom-0 py-0.5 bg-black/85 text-amber-300 font-mono-numbers font-black text-[8px] xs:text-[9px] text-center leading-none">
+                          ₹{userBet}
+                        </div>
+                      )}
                     </div>
 
                     {/* Card English Name */}
-                    <span className="text-[10px] font-black text-[#3a200a] tracking-tight leading-none z-10 text-center truncate max-w-full">
+                    <span className="text-[9px] xs:text-[10px] font-black text-[#3a200a] tracking-tight leading-none z-10 text-center truncate max-w-full">
                       {getCardEnglish(card)}
                     </span>
-
-                    {/* User Bet Pill Overlay */}
-                    {userBet > 0 && (
-                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-600 to-amber-700 text-white font-mono-numbers font-black text-[9px] shadow-md z-20 border border-amber-300">
-                        ₹{userBet}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -2396,14 +2369,14 @@ export default function MobileApp() {
 
             {/* Extra Cards (Card 13 Umbrella, Card 14 Lantern) & Recent Draw Feed */}
             {arenaCards.length > 12 && (
-              <div className="mt-3 pt-2.5 border-t border-[#8c6239]/30 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-[#fbf6ed]/80 rounded-xl p-2.5 border border-[#8c6239]/20 shadow-xs">
+              <div className="mt-2.5 pt-2 border-t border-[#8c6239]/30 space-y-2">
                 {/* Bonus Symbols (Card 13: Chhatri, Card 14: Lalten) */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-black text-[#6d4621] uppercase tracking-wider whitespace-nowrap flex items-center gap-1 flex-shrink-0">
-                    <Sparkles className="w-3 h-3 text-amber-600" />
-                    Bonus Symbols:
+                <div className="flex items-center justify-between gap-2 bg-[#fbf6ed]/90 rounded-xl p-2 border border-[#8c6239]/20 shadow-xs">
+                  <span className="text-[10px] font-black text-[#6d4621] uppercase tracking-wider flex items-center gap-1 shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    Bonus:
                   </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="grid grid-cols-2 gap-1.5 flex-1">
                     {arenaCards.slice(12, 14).map(card => {
                       const userBet = placedBets[card.id] || 0;
                       const isWinner = winningCard === card.id;
@@ -2414,42 +2387,52 @@ export default function MobileApp() {
                           key={card.id}
                           type="button"
                           onClick={() => handlePlaceBet(card.id)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border cursor-pointer pressable transition-all whitespace-nowrap flex-shrink-0 ${
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg border cursor-pointer pressable transition-all ${
                             isWinner
                               ? 'gold-shimmer-border bg-amber-200'
+                              : userBet > 0
+                              ? 'border-2 border-amber-600 bg-amber-100 shadow-sm'
                               : 'border-[#9b7247]/70 bg-[#f4e6c8] hover:bg-[#ecd9b5]'
                           }`}
                         >
-                          <img src={card.imageUrl} alt={cardEnglish} className="w-5 h-5 rounded object-cover shadow-2xs" />
-                          <span className="text-[11px] font-black text-[#3a200a] whitespace-nowrap">{cardHindi}</span>
-                          <span className="text-[8px] font-bold text-amber-800 bg-amber-300/70 px-1 py-0.2 rounded font-mono-numbers">10×</span>
-                          {userBet > 0 && (
-                            <span className="text-[8px] font-black bg-amber-600 text-white px-1.5 py-0.2 rounded-full font-mono-numbers">₹{userBet}</span>
-                          )}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <img src={card.imageUrl} alt={cardEnglish} className="w-5 h-5 rounded object-cover shadow-2xs shrink-0" />
+                            <div className="text-left min-w-0">
+                              <span className="text-[10px] font-black text-[#3a200a] block leading-tight truncate">#{card.id} {cardHindi}</span>
+                              <span className="text-[8px] text-[#78350f] font-semibold block leading-tight truncate">{cardEnglish}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {userBet > 0 ? (
+                              <span className="text-[8px] font-black bg-amber-600 text-white px-1.5 py-0.5 rounded-full font-mono-numbers">₹{userBet}</span>
+                            ) : (
+                              <span className="text-[8px] font-bold text-amber-900 bg-amber-300/70 px-1 py-0.5 rounded font-mono-numbers">10×</span>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Last 3 Winning Draws */}
+                {/* Last Winning Draws Bar */}
                 {recentDraws.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="text-[9px] font-black text-[#6d4621] uppercase tracking-wider flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                  <div className="flex items-center gap-2 bg-[#fbf6ed]/70 rounded-xl px-2.5 py-1.5 border border-[#8c6239]/20">
+                    <span className="text-[9px] font-black text-[#6d4621] uppercase tracking-wider flex items-center gap-1 shrink-0">
                       <Trophy className="w-3.5 h-3.5 text-amber-700" />
-                      Last:
+                      Recent:
                     </span>
-                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                      {recentDraws.slice(0, 3).map((draw, idx) => {
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1">
+                      {recentDraws.slice(0, 5).map((draw, idx) => {
                         const c = arenaCards.find(x => x.id === draw.cardId) || PICTURE_CARDS.find(x => x.id === draw.cardId) || PICTURE_CARDS[0];
                         return (
                           <div
                             key={idx}
-                            className="flex items-center gap-1.5 bg-[#ecd9b5] border border-[#8c6239]/50 px-2 py-0.5 rounded-md text-[10px] font-bold text-[#3a200a] whitespace-nowrap flex-shrink-0 shadow-2xs"
+                            className="flex items-center gap-1 bg-[#ecd9b5] border border-[#8c6239]/50 px-2 py-0.5 rounded-md text-[9px] font-bold text-[#3a200a] whitespace-nowrap shrink-0 shadow-2xs"
                             title={`Round #${draw.roundNumber} winner`}
                           >
-                            <img src={c.imageUrl} alt={getCardEnglish(c)} className="w-4 h-4 rounded object-cover shadow-2xs" />
-                            <span className="whitespace-nowrap">{getCardHindi(c)}</span>
+                            <img src={c.imageUrl} alt={getCardEnglish(c)} className="w-3.5 h-3.5 rounded object-cover shadow-2xs" />
+                            <span>#{c.id} {getCardHindi(c)}</span>
                           </div>
                         );
                       })}

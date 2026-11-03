@@ -27,6 +27,17 @@
     color: #fdf6e7;
     overflow-x: hidden;
     min-height: 100vh;
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
