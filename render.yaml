@@ -43,6 +43,10 @@ services:
         sync: false
       - key: MSG91_AUTH_KEY
         sync: false
+      - key: MSG91_TEMPLATE_ID
+        sync: false
+      - key: MSG91_SENDER_ID
+        sync: false
       - key: CORS_ORIGINS
         value: https://apex-web-landing-o6u0.onrender.com,https://apex-mobile-app.onrender.com,https://apex-web-admin-49qp.onrender.com,https://apex-p2p-panel.onrender.com,https://surrat.in,https://www.surrat.in,https://*.surrat.in
       - key: DATABASE_URL

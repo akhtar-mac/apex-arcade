@@ -46,7 +46,9 @@ export const Config = {
 
   smsProvider: process.env.SMS_PROVIDER || '',
   fast2SmsApiKey: process.env.FAST2SMS_API_KEY || '',
-  msg91AuthKey: process.env.MSG91_AUTH_KEY || ''
+  msg91AuthKey: process.env.MSG91_AUTH_KEY || '',
+  msg91TemplateId: process.env.MSG91_TEMPLATE_ID || '',
+  msg91SenderId: process.env.MSG91_SENDER_ID || ''
 };
 
 const LOCAL_JWT_SECRETS = new Set([
