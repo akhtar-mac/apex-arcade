@@ -48,3 +48,4 @@ The CORS configuration in `apps/backend/src/config.ts` enforces strict validatio
 - Zero hardcoded secrets in version control.
 - All secrets (`JWT_SECRET`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `ADMIN_PASSWORD`) are loaded strictly via environment variables.
 - Alert logger redacts connection strings, passwords, and sensitive keys before recording or logging to stdout.
+

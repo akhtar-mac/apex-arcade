@@ -41,17 +41,43 @@ adminRouter.get('/profit-engine', (req: Request, res: Response) => {
   return res.json({
     success: true,
     data: {
-      note: 'The winning card is sealed when the round starts. This screen is a report of settled rounds. It cannot choose the next card.',
+      ...AdminRiskService.getHouseMarginConfig(),
       rounds
     }
   });
 });
 
-adminRouter.post('/profit-engine', (_req: Request, res: Response) => {
-  return res.status(410).json({
-    success: false,
-    error: 'The card is sealed before bets. This screen cannot change it.'
+adminRouter.post('/profit-engine', (req: Request, res: Response) => {
+  try {
+    const updated = AdminRiskService.setHouseMarginConfig(req.body || {});
+    return res.json({
+      success: true,
+      message: `House profit margin updated: ${updated.enabled ? 'ACTIVE' : 'OFF'} [${updated.minProfitPercent}% - ${updated.maxProfitPercent}%]`,
+      data: updated
+    });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+adminRouter.get('/risk/profit-margin', (_req: Request, res: Response) => {
+  return res.json({
+    success: true,
+    data: AdminRiskService.getHouseMarginConfig()
   });
+});
+
+adminRouter.post('/risk/profit-margin', (req: Request, res: Response) => {
+  try {
+    const updated = AdminRiskService.setHouseMarginConfig(req.body || {});
+    return res.json({
+      success: true,
+      message: `House profit margin updated: ${updated.enabled ? 'ACTIVE' : 'OFF'} [${updated.minProfitPercent}% - ${updated.maxProfitPercent}%]`,
+      data: updated
+    });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 adminRouter.get('/game-logs', (req: Request, res: Response) => {

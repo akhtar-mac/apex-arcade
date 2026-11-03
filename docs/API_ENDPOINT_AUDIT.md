@@ -73,3 +73,4 @@ This document audits all REST endpoints exposed by `apps/backend/src/routes/`.
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/health` | Public | Healthcheck for container orchestrators & Nginx | ~0.9 ms |
 | `GET` | `/api/v1/brand` | Public | Brand configuration and theme variables | ~0.8 ms |
+

@@ -67,3 +67,4 @@ This document audits all functional modules in Apex Arcade against 10 critical c
 2. **Game Studio Hostess Customization**: Supports uploading custom hostess names, voice personas, and 12/14 card configurations mapped to `GameEvent` and `EventCard` database models.
 3. **Turnover & AML Enforcement**: Guaranteed through strict `unwagered` balance decrements during gameplay and assertion checks prior to withdrawal staging.
 4. **Kill Switches**: Admin risk switch triggers in under 1ms, synchronously blocking incoming bet placements via memory flag and Redis cache synchronization.
+

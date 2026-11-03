@@ -81,3 +81,4 @@ Apex Arcade utilizes an **Assisted P2P UPI Desk System** specifically tailored f
    - The UTR submission must match the intent's recorded amount to the exact rupee. Submitting ₹500 against a ₹1,000 intent is immediately rejected by the validator.
 5. **Atomic Rejection Recovery**:
    - Rejecting a withdrawal transaction executes a database transaction that atomically decrements `Wallet.locked` and increments `Wallet.balance`, restoring the player's funds with zero slippage.
+

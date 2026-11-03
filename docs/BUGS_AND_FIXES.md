@@ -84,3 +84,4 @@ Added a high-visibility "Play Online" CTA in `apps/web-landing/src/App.tsx` poin
 ### Verification
 Verified both CTA buttons (Download APK and Play Online) functional.
 **Status**: `VERIFIED & RESOLVED`
+

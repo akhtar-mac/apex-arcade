@@ -51,3 +51,4 @@ The test suite (`tests/auth.test.js` and `tests/test-all-models-and-flows.mjs`) 
 1. **Agent Escalation Attempt**: Agent accounts attempting to access `/admin/risk/kill-switch` were rejected with `HTTP 403: Forbidden`.
 2. **Player Console Access**: Unauthenticated requests or requests with `role: 'USER'` targeting `/admin/p2p-queue` were rejected with `HTTP 403: Forbidden`.
 3. **Session Revocation**: Logged out users attempting to query `/auth/me` or `/payments/withdraw` were blocked with `HTTP 401: Unauthorized`.
+

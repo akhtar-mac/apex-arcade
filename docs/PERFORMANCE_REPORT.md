@@ -52,3 +52,4 @@ A burst benchmark of 100 concurrent asynchronous HTTP requests was executed agai
 - **Node.js Event Loop Delay**: Mean lag < 1.2 ms during active 100-request bursts.
 - **PostgreSQL Connection Overhead**: Managed via PgBouncer with transaction pooling; peak connection count remained within 15 active pool sessions.
 - **Redis State Overhead**: Memory consumption < 8 MB for 10,000 concurrent keys and OTPs.
+

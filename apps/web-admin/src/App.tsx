@@ -199,6 +199,53 @@ export default function AdminApp() {
     marginPercent: number;
   }>>([]);
 
+  // House Profit Margin Engine Configuration (Secret & Hidden from Public)
+  const [houseMarginConfig, setHouseMarginConfig] = useState({
+    enabled: true,
+    minProfitPercent: 20,
+    maxProfitPercent: 40
+  });
+  const [savingMargin, setSavingMargin] = useState(false);
+  const [marginSaveSuccess, setMarginSaveSuccess] = useState('');
+
+  const fetchProfitEngineConfig = () => {
+    fetch(`${API_BASE}/api/v1/admin/profit-engine`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.data) {
+          setHouseMarginConfig({
+            enabled: d.data.enabled !== false,
+            minProfitPercent: Number(d.data.minProfitPercent) || 20,
+            maxProfitPercent: Number(d.data.maxProfitPercent) || 40
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleSaveHouseMargin = async () => {
+    setSavingMargin(true);
+    setMarginSaveSuccess('');
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/profit-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(houseMarginConfig)
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setMarginSaveSuccess(`Saved! Dynamic profit target active between ${houseMarginConfig.minProfitPercent}% and ${houseMarginConfig.maxProfitPercent}%.`);
+        setTimeout(() => setMarginSaveSuccess(''), 4000);
+      } else {
+        alert(data?.error || 'Failed to update profit engine');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingMargin(false);
+    }
+  };
+
   useEffect(() => {
     if (!staffToken) return;
     const originalFetch = window.fetch.bind(window);
@@ -265,6 +312,7 @@ export default function AdminApp() {
     if (!staffToken) return;
     fetchUpiAccounts();
     fetchRiskOps();
+    fetchProfitEngineConfig();
     fetch(`${API_BASE}/api/v1/admin/stats`)
       .then(r => r.json())
       .then(d => { if (d?.data) setDeskStats(prev => ({ ...prev, ...d.data })); })
@@ -581,7 +629,7 @@ export default function AdminApp() {
             {[
               { id: 'overview', label: 'Executive Overview', icon: LayoutDashboard },
               { id: 'risk-ops', label: 'Risk Ops & Kill Switches', icon: AlertTriangle },
-              { id: 'profit-engine', label: 'Round report', icon: Sliders },
+              { id: 'profit-engine', label: 'Profit Engine (20-40%)', icon: Sliders },
               { id: 'live-rounds', label: 'Live Arena Monitor', icon: Zap },
               { id: 'upi-rotator', label: 'Multi-QR & Limits', icon: QrCode },
               { id: 'events', label: 'Events', icon: Plus },
@@ -633,7 +681,7 @@ export default function AdminApp() {
             {[
               { id: 'overview', label: 'Overview' },
               { id: 'risk-ops', label: 'Kill Switches' },
-              { id: 'profit-engine', label: 'Round report' },
+              { id: 'profit-engine', label: 'Profit Engine' },
               { id: 'live-rounds', label: 'Live Arena' },
               { id: 'upi-rotator', label: 'QR Rotator' },
               { id: 'events', label: 'Events' },
@@ -1050,23 +1098,193 @@ export default function AdminApp() {
           )}
 
           {activeTab === 'profit-engine' && (
-            <div className="p-6 rounded-2xl bg-[#140f0a] border border-amber-500/20 space-y-3">
-              <h3 className="text-lg font-black text-white">Round report</h3>
-              <p className="text-sm text-[#94A3B8] leading-relaxed">
-                The winning card is sealed when the round starts. This screen cannot choose it.
-              </p>
-              {roundReports.length === 0 ? (
-                <p className="text-xs text-[#94A3B8]">No settled rounds yet.</p>
-              ) : (
-                <ul className="space-y-2 text-xs font-mono-numbers">
-                  {roundReports.map(row => (
-                    <li key={row.roundNumber} className="flex justify-between border-b border-amber-500/10 py-2">
-                      <span>#{row.roundNumber} {row.winningCardName}</span>
-                      <span>Pool ₹{Number(row.totalPool || 0).toLocaleString('en-IN')} · paid ₹{Number(row.totalPayout || 0).toLocaleString('en-IN')}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div className="space-y-6">
+              {/* Header Banner */}
+              <div className="p-6 rounded-2xl bg-[#140f0a] border border-amber-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-[10px] uppercase tracking-wider">
+                      CONFIDENTIAL OPERATOR CONTROLS
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[10px]">
+                      SECRET • HIDDEN FROM PLAYERS
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-white">Dynamic House Profit Margin Engine</h3>
+                  <p className="text-xs text-[#94A3B8]">
+                    Calculates round outcomes to guarantee house retained profit between {houseMarginConfig.minProfitPercent}% and {houseMarginConfig.maxProfitPercent}% in every game.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
+                    houseMarginConfig.enabled
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      : 'bg-red-500/10 text-red-400 border-red-500/30'
+                  }`}>
+                    {houseMarginConfig.enabled ? '🟢 ENGINE ACTIVE' : '🔴 ENGINE OFF (PURE RNG)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Master Control Card */}
+              <div className="p-6 rounded-2xl bg-[#140f0a] border border-amber-500/20 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+                  <div>
+                    <h4 className="text-base font-black text-white">House Winning & Margin Parameters</h4>
+                    <p className="text-xs text-[#94A3B8]">
+                      Dynamic floating mode: Retained profit varies between min & max per round. Avoids fixed predictable margins while preventing losses.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer shrink-0">
+                    <span className="text-xs font-bold text-white">Enable House Edge Engine:</span>
+                    <input
+                      type="checkbox"
+                      checked={houseMarginConfig.enabled}
+                      onChange={(e) => setHouseMarginConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                      className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Min Profit Input */}
+                  <div className="p-4 rounded-xl bg-[#18130e] border border-amber-500/15 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-white">Minimum House Profit %:</span>
+                      <span className="font-mono-numbers font-black text-amber-400">{houseMarginConfig.minProfitPercent}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={houseMarginConfig.minProfitPercent}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setHouseMarginConfig(prev => ({
+                          ...prev,
+                          minProfitPercent: val,
+                          maxProfitPercent: Math.max(val, prev.maxProfitPercent)
+                        }));
+                      }}
+                      className="w-full accent-amber-500 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-[#94A3B8] block">
+                      The house will never retain less than {houseMarginConfig.minProfitPercent}% of the total pool in any game.
+                    </span>
+                  </div>
+
+                  {/* Max Profit Input */}
+                  <div className="p-4 rounded-xl bg-[#18130e] border border-amber-500/15 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-white">Maximum House Profit %:</span>
+                      <span className="font-mono-numbers font-black text-amber-400">{houseMarginConfig.maxProfitPercent}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={houseMarginConfig.minProfitPercent}
+                      max={90}
+                      step={1}
+                      value={houseMarginConfig.maxProfitPercent}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setHouseMarginConfig(prev => ({ ...prev, maxProfitPercent: val }));
+                      }}
+                      className="w-full accent-amber-500 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-[#94A3B8] block">
+                      The house profit floats up to {houseMarginConfig.maxProfitPercent}%, allowing players to win 60%-80% of the pool.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                  <div className="text-xs text-[#94A3B8]">
+                    {marginSaveSuccess ? (
+                      <span className="text-emerald-400 font-bold">✔ {marginSaveSuccess}</span>
+                    ) : (
+                      <span>Current Mode: <strong className="text-amber-400">Floating Range ({houseMarginConfig.minProfitPercent}% – {houseMarginConfig.maxProfitPercent}% House Margin)</strong></span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSaveHouseMargin}
+                    disabled={savingMargin}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs pressable shadow-md hover:brightness-110 disabled:opacity-50"
+                  >
+                    {savingMargin ? 'Saving...' : 'Apply Secret Margin Settings'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Completed Game Rounds Table with Real Margins */}
+              <div className="p-6 rounded-2xl bg-[#140f0a] border border-amber-500/20">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h4 className="text-base font-black text-white">Completed Rounds Settlement & Margin Report</h4>
+                    <p className="text-xs text-[#94A3B8]">Real-time audit of pools, payouts, and retained house profit margins.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      fetch(`${API_BASE}/api/v1/admin/game-logs`)
+                        .then(r => r.json())
+                        .then(d => { if (Array.isArray(d?.data)) setRoundReports(d.data.slice(0, 15)); });
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs pressable flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="border-b border-amber-500/20 text-[#94A3B8] font-bold">
+                        <th className="py-2.5">Round #</th>
+                        <th className="py-2.5">Winning Card</th>
+                        <th className="py-2.5">Total Pool</th>
+                        <th className="py-2.5">Paid to Players</th>
+                        <th className="py-2.5">House Profit</th>
+                        <th className="py-2.5">House Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04] font-mono-numbers">
+                      {roundReports.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-[#94A3B8]">No settled rounds recorded yet.</td>
+                        </tr>
+                      ) : roundReports.map(row => {
+                        const pool = Number(row.totalPool || 0);
+                        const payout = Number(row.totalPayout || 0);
+                        const profit = pool - payout;
+                        const margin = pool > 0 ? ((profit / pool) * 100).toFixed(1) : '0.0';
+                        return (
+                          <tr key={row.roundNumber}>
+                            <td className="py-3 text-white font-bold">#{row.roundNumber}</td>
+                            <td className="py-3 text-amber-400 font-bold">#{row.winningCard} {row.winningCardName} {row.winningCardSymbol}</td>
+                            <td className="py-3 text-white">₹{pool.toLocaleString('en-IN')}</td>
+                            <td className="py-3 text-[#94A3B8]">₹{payout.toLocaleString('en-IN')}</td>
+                            <td className={`py-3 font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {profit >= 0 ? `+₹${profit.toLocaleString('en-IN')}` : `-₹${Math.abs(profit).toLocaleString('en-IN')}`}
+                            </td>
+                            <td className="py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                Number(margin) >= 20 && Number(margin) <= 40
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : Number(margin) > 40
+                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              }`}>
+                                {margin}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 

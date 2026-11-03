@@ -49,3 +49,4 @@ If the Redis container crashes or becomes unreachable:
 1. **Rate Limiting Mode**: Rate limiters automatically switch to fail-closed for authentication routes in production, blocking unauthorized brute-force attempts while Redis recovers.
 2. **Persistence**: Redis is configured with `--appendonly yes`. On container restart, all persistent keys (active OTPs, game session metadata) are reloaded from disk within seconds.
 3. **Container Auto-Restart**: Managed via `restart: always` in `docker-compose.yml`.
+

@@ -92,3 +92,4 @@ The repository includes a production-ready `render.yaml` specification for Rende
 - **ProGuard / R8**: Code obfuscation and resource shrinking enabled in `app/build.gradle`.
 - **Cleartext Traffic**: Hardened to `android:usesCleartextTraffic="false"`.
 - **Distribution**: Staged directly on marketing website (`apps/web-landing/public/downloads/apex-arcade-1.1.apk`), avoiding third-party store app review delays.
+

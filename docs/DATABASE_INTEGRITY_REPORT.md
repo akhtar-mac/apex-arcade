@@ -54,3 +54,4 @@ The PostgreSQL database houses 13 core relational models:
   SELECT id, status, amount FROM "Transaction" WHERE id = $1 FOR UPDATE;
   ```
 - **Prisma Connection Pooling**: Configured with `connection_limit=20` per Node process when communicating through PgBouncer, preventing PostgreSQL backend exhaustion under high concurrency.
+
