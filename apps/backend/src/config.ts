@@ -26,7 +26,7 @@ export const Config = {
   defaultMultiplier: 10.0,
   minDeposit: 100,
   minWithdrawal: 500,
-  allowDemoOtp: !isProduction && process.env.ALLOW_DEMO_OTP === 'true',
+  allowDemoOtp: !isProduction && (process.env.ALLOW_DEMO_OTP === 'true' || process.env.SMS_PROVIDER === 'DEMO' || (!process.env.FAST2SMS_API_KEY && !process.env.MSG91_AUTH_KEY)),
   testOtp: process.env.NODE_ENV === 'test' && /^\d{6}$/.test(process.env.TEST_OTP || '')
     ? process.env.TEST_OTP!
     : '',

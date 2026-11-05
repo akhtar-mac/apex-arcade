@@ -249,9 +249,9 @@ export default function LandingApp() {
               { label: 'Card Draw', value: 'Sealed', sub: 'Mughal host stage', color: '#fbbf24' },
             ].map(stat => (
               <div key={stat.label} className="glass-card p-4 rounded-2xl text-left hover:border-amber-500/40 transition">
-                <span className="text-[11px] text-amber-200/60 font-semibold block mb-1">{stat.label}</span>
+                <span className="text-[11px] text-amber-100 font-semibold block mb-1">{stat.label}</span>
                 <span className="text-xl font-black font-mono-numbers" style={{ color: stat.color }}>{stat.value}</span>
-                <span className="text-[11px] text-amber-200/50 block mt-0.5">{stat.sub}</span>
+                <span className="text-[11px] text-amber-200/80 block mt-0.5">{stat.sub}</span>
               </div>
             ))}
           </div>
@@ -316,10 +316,10 @@ export default function LandingApp() {
               <div key={i} className="glass-card p-5 rounded-2xl hover:bg-white/[0.05] transition group">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl">{step.icon}</span>
-                  <span className="text-xs font-black text-slate-600 font-mono">{step.num}</span>
+                  <span className="text-xs font-black text-slate-400 font-mono">{step.num}</span>
                 </div>
                 <h3 className="font-black text-base text-white mb-2">{step.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">{step.desc}</p>
+                <p className="text-xs text-slate-300 leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -340,7 +340,7 @@ export default function LandingApp() {
                 <div key={p.phase} className="p-4 rounded-2xl border border-white/[0.06] hover:border-white/20 transition" style={{ background: `${p.color}08` }}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xl">{p.icon}</span>
-                    <span className="text-[9px] font-mono font-bold text-slate-600 bg-black/30 px-2 py-0.5 rounded-full">{p.duration}</span>
+                    <span className="text-[9px] font-mono font-bold text-slate-300 bg-black/50 px-2 py-0.5 rounded-full">{p.duration}</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-wider block mb-1" style={{ color: p.color }}>{p.phase}</span>
                   <h4 className="font-black text-sm text-white mb-1.5">{p.title}</h4>
@@ -426,7 +426,7 @@ export default function LandingApp() {
                   { label: 'Credit', value: 'After match', color: 'text-[#ffb800]' },
                 ].map(r => (
                   <div key={r.label} className="flex justify-between">
-                    <span className="text-slate-500">{r.label}</span>
+                    <span className="text-slate-300 font-medium">{r.label}</span>
                     <span className={`font-black ${r.color}`}>{r.value}</span>
                   </div>
                 ))}
@@ -513,7 +513,7 @@ export default function LandingApp() {
               <Download className="w-5 h-5" />
               Download App
             </button>
-            <p className="text-[11px] text-slate-500 mt-4">Unsigned and debug builds are not distributed.</p>
+            <p className="text-[11px] text-slate-400 mt-4">Unsigned and debug builds are not distributed.</p>
           </div>
         </div>
       </section>
@@ -529,7 +529,7 @@ export default function LandingApp() {
                 </div>
                 <span className="font-black text-white text-lg font-['Outfit']">APEX<span className="text-[#0df59d]">ARCADE</span></span>
               </div>
-              <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
                 A restricted-stage 14-picture arcade backed by PostgreSQL and Redis. Transactional features remain disabled until release authorization.
               </p>
             </div>
@@ -537,24 +537,24 @@ export default function LandingApp() {
             {/* Links */}
             <div className="flex flex-wrap gap-8">
               <div>
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Platform</div>
-                <div className="space-y-2 text-xs text-slate-500">
+                <div className="text-[11px] font-black text-slate-300 uppercase tracking-widest mb-3">Platform</div>
+                <div className="space-y-2 text-xs text-slate-400">
                   <a href="#mechanics" className="hover:text-white block transition">How It Works</a>
                   <a href="#cards" className="hover:text-white block transition">14 Cards</a>
                   <a href="#banking" className="hover:text-white block transition">Room Tiers</a>
                 </div>
               </div>
               <div>
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Legal</div>
-                <div className="space-y-2 text-xs text-slate-500">
+                <div className="text-[11px] font-black text-slate-300 uppercase tracking-widest mb-3">Legal</div>
+                <div className="space-y-2 text-xs text-slate-400">
                   <button type="button" onClick={() => setLegalPage('terms')} className="hover:text-white block transition text-left">Terms & Conditions</button>
                   <button type="button" onClick={() => setLegalPage('privacy')} className="hover:text-white block transition text-left">Privacy Policy</button>
                   <button type="button" onClick={() => setLegalPage('responsible')} className="hover:text-white block transition text-left">18+ and self-exclusion</button>
                 </div>
               </div>
               <div>
-                <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Support</div>
-                <div className="space-y-2 text-xs text-slate-500">
+                <div className="text-[11px] font-black text-slate-300 uppercase tracking-widest mb-3">Support</div>
+                <div className="space-y-2 text-xs text-slate-400">
                   <button type="button" onClick={() => setLegalPage('responsible')} className="hover:text-white block transition text-left">Responsible Gaming</button>
                 </div>
               </div>
@@ -565,9 +565,9 @@ export default function LandingApp() {
           <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-black text-[10px] border border-red-500/20">18+ ONLY</span>
-              <span className="text-xs text-slate-500">Play Responsibly. Not available in AP, Telangana, Assam, Odisha.</span>
+              <span className="text-xs text-slate-400">Play Responsibly. Not available in AP, Telangana, Assam, Odisha.</span>
             </div>
-            <span className="text-[11px] text-slate-600">© 2026 {brand.appName}</span>
+            <span className="text-[11px] text-slate-400">© 2026 {brand.appName}</span>
           </div>
         </div>
       </footer>

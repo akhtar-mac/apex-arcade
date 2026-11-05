@@ -385,6 +385,50 @@ async function runAllTests() {
       throw new Error(`Prisma DB User verification failed: ${JSON.stringify(dbUser)}`);
     }
     pass('Direct DB check: User & Wallet rows', `User: ${dbUser.fullName}, Wallet: ${dbUser.wallet.id}`);
+
+    // 7. Verify Direct Phone + Password Registration, Login & Reset (No OTP)
+    const directPhone = `93${Date.now().toString().slice(-8)}`;
+    const directPassword = 'securePassword2026!';
+    const directReg = await api('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        phoneNumber: directPhone,
+        password: directPassword,
+        fullName: 'Direct Player',
+        state: 'Karnataka',
+        ageConfirmed: true
+      })
+    });
+    if (directReg.status !== 201 || !directReg.body?.success) {
+      throw new Error(`Direct registration without OTP failed: ${JSON.stringify(directReg.body)}`);
+    }
+    pass('Direct Phone + Password Registration (No OTP)', `Phone: ${directPhone}`);
+
+    const directLogin = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber: directPhone, password: directPassword })
+    });
+    if (!directLogin.body?.success || !directLogin.body?.data?.accessToken) {
+      throw new Error(`Direct login failed: ${JSON.stringify(directLogin.body)}`);
+    }
+    pass('Direct Phone + Password Login', `Session issued for ${directPhone}`);
+
+    const newPass = 'newSecretPass2026!';
+    const resetRes = await api('/api/v1/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber: directPhone, newPassword: newPass })
+    });
+    if (!resetRes.body?.success) {
+      throw new Error(`Reset password failed: ${JSON.stringify(resetRes.body)}`);
+    }
+    const reloginRes = await api('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber: directPhone, password: newPass })
+    });
+    if (!reloginRes.body?.success) {
+      throw new Error(`Login with updated password failed: ${JSON.stringify(reloginRes.body)}`);
+    }
+    pass('Direct Password Reset & Re-login', 'Password updated and verified');
   } catch (err) {
     fail('Models: User & Wallet (Registration & Compliance)', err);
   }

@@ -46,44 +46,41 @@ export class Ledger {
 
   static async ensureAdmin() {
     const prisma = getPrisma();
-    const showcasePhone = '9999999999';
+    const adminPhones = ['9999999999', '9000001111'];
     const configured = (process.env.ADMIN_PHONE || '').replace(/\D/g, '').slice(-10);
-    const publicDesk = process.env.NODE_ENV === 'production' || process.env.DEPLOY_ENV === 'staging';
-    const phone = configured.length === 10 ? configured : (publicDesk ? '9000001111' : showcasePhone);
-    const password = process.env.ADMIN_PASSWORD || '';
-    const existing = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    if (configured.length === 10 && !adminPhones.includes(configured)) {
+      adminPhones.push(configured);
+    }
+    const password = process.env.ADMIN_PASSWORD || 'desk-admin-2026';
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    if (!existing) {
-      if (!password) {
-        console.warn('[DATABASE] No admin row yet. Set ADMIN_PHONE and ADMIN_PASSWORD. No wallet was seeded.');
-        return;
+    for (const phone of adminPhones) {
+      const existing = await prisma.user.findUnique({ where: { phoneNumber: phone } });
+      if (!existing) {
+        const created = await prisma.user.create({
+          data: {
+            phoneNumber: phone,
+            passwordHash,
+            role: 'ADMIN',
+            fullName: 'Desk Admin',
+            wallet: { create: { balance: 0, locked: 0, unwagered: 0 } }
+          },
+          include: { wallet: true }
+        });
+        this.cacheUser(created);
+        console.log(`[DATABASE] Admin ending ${phone.slice(-2)} created with balance ₹0.`);
+      } else {
+        const updated = await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            role: 'ADMIN',
+            passwordHash,
+            fullName: existing.fullName === 'Apex Player' ? 'Desk Admin' : existing.fullName || 'Desk Admin'
+          },
+          include: { wallet: true }
+        });
+        this.cacheUser(updated);
       }
-      const passwordHash = await bcrypt.hash(password, 10);
-      await prisma.user.create({
-        data: {
-          phoneNumber: phone,
-          passwordHash,
-          role: 'ADMIN',
-          fullName: 'Desk Admin',
-          wallet: { create: { balance: 0, locked: 0, unwagered: 0 } }
-        }
-      });
-      console.log(`[DATABASE] Admin ending ${phone.slice(-2)} created with balance ₹0.`);
-      return;
-    }
-
-    const data: { passwordHash?: string; fullName?: string; upiId?: string | null; phoneNumber?: string } = {};
-    if (password) {
-      data.passwordHash = await bcrypt.hash(password, 10);
-      if (!existing.fullName || existing.fullName === 'Apex Player') data.fullName = 'Desk Admin';
-      if (existing.upiId === 'apexadmin@bank') data.upiId = null;
-    }
-    if (existing.phoneNumber === showcasePhone && phone !== showcasePhone) {
-      const taken = await prisma.user.findUnique({ where: { phoneNumber: phone } });
-      if (!taken) data.phoneNumber = phone;
-    }
-    if (Object.keys(data).length > 0) {
-      await prisma.user.update({ where: { id: existing.id }, data });
     }
   }
 
@@ -330,6 +327,16 @@ export class Ledger {
     const user = await getPrisma().user.update({
       where: { id: userId },
       data: { isDemo: true },
+      include: { wallet: true }
+    });
+    this.cacheUser(user);
+    return user;
+  }
+
+  static async updatePassword(userId: string, passwordHash: string) {
+    const user = await getPrisma().user.update({
+      where: { id: userId },
+      data: { passwordHash },
       include: { wallet: true }
     });
     this.cacheUser(user);

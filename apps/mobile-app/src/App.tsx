@@ -35,9 +35,13 @@ import {
   ExternalLink,
   Check,
   Lock,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 import { NativeUpiService, HapticFeedback } from './services/native-upi.js';
+import { sound } from './services/sound.js';
 
 // CONSTANTS & GAME DATA
 
@@ -139,83 +143,7 @@ export interface LiveFeedBetItem {
   isSelf?: boolean;
 }
 
-// AUDIO SYNTHESIZER (Pure Web Audio - No Assets Needed)
-
-class SoundFX {
-  private ctx: AudioContext | null = null;
-  public enabled: boolean = true;
-
-  private getContext() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-    return this.ctx;
-  }
-
-  playChip() {
-    if (!this.enabled) return;
-    try {
-      const ctx = this.getContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(620, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(840, ctx.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.07);
-    } catch {}
-  }
-
-  playTick() {
-    if (!this.enabled) return;
-    try {
-      const ctx = this.getContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.04);
-    } catch {}
-  }
-
-  playWin() {
-    if (!this.enabled) return;
-    try {
-      const ctx = this.getContext();
-      if (!ctx) return;
-      const notes = [523.25, 659.25, 783.99, 1046.50];
-      notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
-        gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.28);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + idx * 0.08);
-        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
-      });
-    } catch {}
-  }
-}
-
-const sound = new SoundFX();
+// Centralized betting sound system imported from ./services/sound.js
 let memoryAccessToken = '';
 
 if (typeof window !== 'undefined') {
@@ -229,12 +157,17 @@ if (typeof window !== 'undefined') {
 // MAIN APPLICATION COMPONENT
 
 export default function MobileApp() {
-  // Navigation & Auth
+  // Navigation & Auth (Phone + Password authentication scheme)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [accountId, setAccountId] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [loginStep, setLoginStep] = useState<'phone' | 'otp'>('phone');
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('lobby');
   const [walletReady, setWalletReady] = useState(false);
   const [hasPaidDeposit, setHasPaidDeposit] = useState(false);
@@ -245,7 +178,7 @@ export default function MobileApp() {
   const [balance, setBalance] = useState<number>(0);
   const [lockedBalance, setLockedBalance] = useState<number>(0);
   const [balanceFlash, setBalanceFlash] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(() => sound.enabled);
 
   // Selected Room & Game State
   const [selectedRoom, setSelectedRoom] = useState<RoomTier>(ROOMS[0]);
@@ -312,12 +245,14 @@ export default function MobileApp() {
 
   // Auth Modes & Registration Form
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [registrationToken, setRegistrationToken] = useState('');
   const [regForm, setRegForm] = useState({
     fullName: '',
     phone: '',
     email: '',
     state: 'Maharashtra',
+    password: '',
+    confirmPassword: '',
+    showPassword: false,
     payoutUpi: '',
     ageConfirmed: false
   });
@@ -389,7 +324,6 @@ export default function MobileApp() {
   };
 
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
 
   // Hydrate user session from local SQL database on app load
   useEffect(() => {
@@ -420,79 +354,190 @@ export default function MobileApp() {
     }
   }, [API_BASE]);
 
-  // Auth Action Handlers connected to Local SQL Backend
-  const handleSendOtpClick = async () => {
+  // Direct Phone + Password Authentication Handlers (No OTP)
+  const handleLoginSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const cleanPhone = phoneNumber.replace(/\D/g, '').slice(-10);
     if (cleanPhone.length !== 10) {
+      sound.playError();
       showToast('Please enter a valid 10-digit mobile number.');
       return;
     }
+    if (!password || password.length < 6) {
+      sound.playError();
+      showToast('Please enter your password (minimum 6 characters).');
+      return;
+    }
     setIsSubmittingAuth(true);
-    setSendingOtp(true);
+    sound.playButtonClick();
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/send-otp`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleanPhone })
+        body: JSON.stringify({ phoneNumber: cleanPhone, password })
       });
       const data = await res.json();
-      if (data.success) {
-        showToast('Verification code sent.');
-        setLoginStep('otp');
+      if (data.success && data.data) {
+        sound.playSuccess();
+        const { user, wallet, accessToken } = data.data;
+        if (accessToken) memoryAccessToken = accessToken;
+        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
+        if (user?.id) setAccountId(user.id);
+        if (user?.fullName) setUserName(user.fullName);
+        if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
+        if (user?.upiId) setWithdrawUpi(user.upiId);
+        if (user?.email) setUserEmail(user.email);
+        if (user?.state) setUserState(user.state);
+        setFundWizardOpen(false);
+        setOfferDismissed(false);
+        setIsLoggedIn(true);
+        setActiveTab('lobby');
+        setWalletReady(true);
+        showToast(`Welcome back, ${user?.fullName || 'Player'}!`);
       } else {
-        showToast(data.error || 'Failed to send OTP.');
+        sound.playError();
+        showToast(data.error || 'Invalid mobile number or password.');
       }
     } catch {
+      sound.playError();
       showToast('Could not reach the login server.');
     } finally {
-      setSendingOtp(false);
       setIsSubmittingAuth(false);
     }
   };
 
-  const handleVerifyOtpClick = async () => {
-    const cleanPhone = phoneNumber.replace(/\D/g, '').slice(-10);
-    if (otpInput.length !== 6) {
-      showToast('Please enter the 6-digit code.');
+  const handleRegisterSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!regForm.fullName.trim() || regForm.fullName.trim().length < 2) {
+      sound.playError();
+      showToast('Please enter your full legal name.');
+      return;
+    }
+    const cleanPhone = regForm.phone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      sound.playError();
+      showToast('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!regForm.state.trim()) {
+      sound.playError();
+      showToast('Please enter your state/jurisdiction.');
+      return;
+    }
+    if (!regForm.password || regForm.password.length < 6) {
+      sound.playError();
+      showToast('Password must be at least 6 characters long.');
+      return;
+    }
+    if (regForm.password !== regForm.confirmPassword) {
+      sound.playError();
+      showToast('Passwords do not match. Please re-enter.');
+      return;
+    }
+    if (regForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email.trim())) {
+      sound.playError();
+      showToast('Please enter a valid email, or leave it blank.');
+      return;
+    }
+    if (!regForm.ageConfirmed) {
+      sound.playError();
+      showToast('You must confirm you are 18 years or older.');
       return;
     }
     setIsSubmittingAuth(true);
+    sound.playButtonClick();
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/verify-otp`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleanPhone, otp: otpInput })
+        body: JSON.stringify({
+          fullName: regForm.fullName.trim(),
+          phoneNumber: cleanPhone,
+          state: regForm.state.trim(),
+          email: regForm.email.trim() || undefined,
+          payoutUpi: regForm.payoutUpi.trim() || undefined,
+          password: regForm.password,
+          ageConfirmed: regForm.ageConfirmed
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        sound.playSuccess();
+        const { user, wallet, accessToken } = data.data;
+        if (accessToken) memoryAccessToken = accessToken;
+        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
+        if (user?.id) setAccountId(user.id);
+        if (user?.fullName) setUserName(user.fullName);
+        if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
+        if (user?.upiId) setWithdrawUpi(user.upiId);
+        if (user?.email) setUserEmail(user.email);
+        if (user?.state) setUserState(user.state);
+        setHasPaidDeposit(false);
+        setFundWizardOpen(false);
+        setOfferDismissed(false);
+        setIsLoggedIn(true);
+        setActiveTab('lobby');
+        setWalletReady(true);
+        showToast(`Registration complete! Welcome, ${user?.fullName || 'Player'}!`);
+      } else {
+        sound.playError();
+        showToast(data.error || 'Registration failed.');
+      }
+    } catch (err: any) {
+      sound.playError();
+      showToast('Registration error: ' + (err.message || 'Server unreachable'));
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanPhone = resetPhone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      sound.playError();
+      showToast('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!resetPassword || resetPassword.length < 6) {
+      sound.playError();
+      showToast('New password must be at least 6 characters.');
+      return;
+    }
+    if (resetPassword !== resetConfirmPassword) {
+      sound.playError();
+      showToast('Passwords do not match.');
+      return;
+    }
+    setIsSubmittingAuth(true);
+    sound.playButtonClick();
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: cleanPhone,
+          newPassword: resetPassword
+        })
       });
       const data = await res.json();
       if (data.success) {
-        if (data.isNewUser) {
-          showToast('OTP verified. Finish registration. New wallets start at ₹0.');
-          setRegistrationToken(data.registrationToken || '');
-          setRegForm(prev => ({ ...prev, phone: cleanPhone }));
-          setAuthMode('register');
-        } else if (data.data) {
-          const { user, wallet, accessToken } = data.data;
-          if (accessToken) memoryAccessToken = accessToken;
-          if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
-          if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
-          if (user?.id) setAccountId(user.id);
-          if (user?.fullName) setUserName(user.fullName);
-          if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
-          if (user?.upiId) setWithdrawUpi(user.upiId);
-          if (user?.email) setUserEmail(user.email);
-          if (user?.state) setUserState(user.state);
-          setFundWizardOpen(false);
-          setOfferDismissed(false);
-          setIsLoggedIn(true);
-          setActiveTab('lobby');
-          setWalletReady(true);
-          showToast(`Welcome back, ${user.fullName || 'Player'}!`);
-        }
+        sound.playSuccess();
+        showToast(data.message || 'Password reset! Please sign in.');
+        setForgotModalOpen(false);
+        setPhoneNumber(cleanPhone);
+        setPassword(resetPassword);
+        setResetPassword('');
+        setResetConfirmPassword('');
       } else {
-        showToast(data.error || 'Invalid OTP code.');
+        sound.playError();
+        showToast(data.error || 'Failed to reset password.');
       }
-    } catch (err: any) {
-      showToast('Login error: ' + err.message);
+    } catch {
+      sound.playError();
+      showToast('Could not reach the server.');
     } finally {
       setIsSubmittingAuth(false);
     }
@@ -500,10 +545,12 @@ export default function MobileApp() {
 
   const handleShowcaseLoginClick = async () => {
     setIsSubmittingAuth(true);
+    sound.playButtonClick();
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/demo-login`, { method: 'POST' });
       const data = await res.json();
       if (data.success && data.data) {
+        sound.playSuccess();
         const { user, wallet, accessToken } = data.data;
         if (accessToken) memoryAccessToken = accessToken;
         if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
@@ -521,96 +568,12 @@ export default function MobileApp() {
         setWalletReady(true);
         showToast(`Welcome! Demo account active with ₹${Number(wallet?.balance || 100000).toLocaleString('en-IN')}.`);
       } else {
+        sound.playError();
         showToast(data.error || 'Demo login is not available.');
       }
     } catch {
+      sound.playError();
       showToast('Could not reach the login server.');
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
-
-  const handleRegistrationVerificationClick = async () => {
-    if (regForm.phone.length !== 10) {
-      showToast('Enter a 10-digit mobile number.');
-      return;
-    }
-    setPhoneNumber(regForm.phone);
-    setIsSubmittingAuth(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: regForm.phone })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Failed to send OTP.');
-      setAuthMode('login');
-      setLoginStep('otp');
-      showToast('Verification code sent. Verify it to finish registration.');
-    } catch (error: any) {
-      showToast(error.message || 'Could not reach the login server.');
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
-
-  const handleRegisterSubmit = async () => {
-    if (!regForm.fullName.trim() || regForm.fullName.trim().length < 2) {
-      showToast('Enter your full name.');
-      return;
-    }
-    if (regForm.phone.length !== 10) {
-      showToast('Enter a 10-digit mobile number.');
-      return;
-    }
-    if (regForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email.trim())) {
-      showToast('Enter a valid email, or leave it blank.');
-      return;
-    }
-    if (!regForm.ageConfirmed) {
-      showToast('Confirm you are 18 or older.');
-      return;
-    }
-    setIsSubmittingAuth(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: regForm.fullName,
-          phoneNumber: regForm.phone,
-          state: regForm.state,
-          email: regForm.email.trim() || undefined,
-          payoutUpi: regForm.payoutUpi,
-          ageConfirmed: regForm.ageConfirmed,
-          registrationToken
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        const { user, wallet, accessToken } = data.data;
-        if (accessToken) memoryAccessToken = accessToken;
-        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
-        if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
-        if (user?.id) setAccountId(user.id);
-        if (user?.fullName) setUserName(user.fullName);
-        if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
-        if (user?.upiId) setWithdrawUpi(user.upiId);
-        if (user?.email) setUserEmail(user.email);
-        if (user?.state) setUserState(user.state);
-        setHasPaidDeposit(false);
-        setFundWizardOpen(false);
-        setOfferDismissed(false);
-        setIsLoggedIn(true);
-        setActiveTab('lobby');
-        setWalletReady(true);
-        showToast(`Welcome, ${user.fullName}. Your wallet starts at ₹0.`);
-      } else {
-        showToast(data.error || 'Registration failed.');
-      }
-    } catch (err: any) {
-      showToast('Registration error: ' + err.message);
     } finally {
       setIsSubmittingAuth(false);
     }
@@ -625,7 +588,6 @@ export default function MobileApp() {
     setOfferDismissed(false);
     setActiveTab('lobby');
     setAuthMode('login');
-    setLoginStep('phone');
     showToast('Logged out successfully.');
   };
 
@@ -739,6 +701,7 @@ export default function MobileApp() {
     socket.on('round:locked', (data: any) => {
       if (data.roomId === selectedRoom.id) {
         setRoundStatus('LOCKED');
+        sound.playBetClosed();
         HapticFeedback.roundLocked();
         showToast('🔒 Bets Closed! Drawing winning card...');
       }
@@ -764,7 +727,7 @@ export default function MobileApp() {
           const payout = userBet * (Number(data.multiplier) || arenaMultiplier);
           setBalanceFlash(true);
           setTimeout(() => setBalanceFlash(false), 800);
-          sound.playWin();
+          sound.playBetWon();
           HapticFeedback.winCelebration();
           setWinModalData({ card: cardObj, winAmount: payout });
           setActivityHistory(h => [
@@ -781,6 +744,7 @@ export default function MobileApp() {
           ]);
         } else if (Object.keys(placedBetsRef.current).length > 0) {
           const totalBet = Object.values(placedBetsRef.current).reduce((a, b) => a + b, 0);
+          sound.playBetLost();
           setActivityHistory(h => [
             {
               id: `TX-${Date.now()}`,
@@ -793,11 +757,14 @@ export default function MobileApp() {
             },
             ...h
           ]);
+        } else {
+          sound.playNotification();
         }
 
         setLastPlacedBets({ ...placedBetsRef.current });
         setTimeout(() => {
           setRoundStatus('BETTING');
+          sound.playBetNow();
           setPlacedBets({});
           setWinningCard(null);
           setWinModalData(null);
@@ -969,7 +936,7 @@ export default function MobileApp() {
       return;
     }
 
-    sound.playChip();
+    sound.playCoin();
     socket.emit('place:bet', {
       roomId: selectedRoom.id,
       roundId,
@@ -977,9 +944,12 @@ export default function MobileApp() {
       amount: stake
     }, (res: { success?: boolean; error?: string; newBalance?: number }) => {
       if (!res?.success) {
+        sound.playError();
         showToast(res?.error || 'Bet was not accepted.');
         return;
       }
+      sound.playBetPlaced();
+      HapticFeedback.betPlaced();
       if (typeof res.newBalance === 'number') setBalance(res.newBalance);
         setPlacedBets(prev => {
         const next = { ...prev, [cardId]: (prev[cardId] || 0) + stake };
@@ -1226,6 +1196,100 @@ export default function MobileApp() {
       ]);
       setIsAgentTyping(false);
     }, 1100);
+  };
+
+  // FORGOT / RESET PASSWORD MODAL
+  const renderForgotPasswordModal = () => {
+    if (!forgotModalOpen) return null;
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+        <div className="w-full max-w-sm bg-[#140f0a] border-2 border-amber-500/40 rounded-3xl p-5 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center border-b border-amber-500/20 pb-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-amber-400" />
+              <h3 className="text-base font-black text-amber-100 font-serif">Reset Password</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForgotModalOpen(false)}
+              className="w-7 h-7 rounded-full bg-[#221810] border border-amber-500/30 text-amber-200 flex items-center justify-center hover:text-white pressable"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleResetPasswordSubmit} className="space-y-3 text-xs">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
+                Registered Mobile (+91)
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                maxLength={10}
+                placeholder="10-digit number"
+                value={resetPhone}
+                onChange={e => setResetPhone(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-[#18130e] border border-amber-500/30 rounded-xl px-3.5 py-2.5 text-base sm:text-xs text-amber-100 placeholder:text-amber-200/30 font-mono-numbers outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
+                New Password (min 6 chars)
+              </label>
+              <div className="flex items-center bg-[#18130e] border border-amber-500/30 rounded-xl px-3 py-2 focus-within:border-amber-400">
+                <input
+                  type={showResetPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Enter new password"
+                  value={resetPassword}
+                  onChange={e => setResetPassword(e.target.value)}
+                  className="bg-transparent text-amber-100 placeholder:text-amber-200/30 text-xs outline-none w-full"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="text-amber-400/80 hover:text-amber-300 p-0.5 ml-1"
+                >
+                  {showResetPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type={showResetPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Repeat new password"
+                value={resetConfirmPassword}
+                onChange={e => setResetConfirmPassword(e.target.value)}
+                className="w-full bg-[#18130e] border border-amber-500/30 rounded-xl px-3 py-2 text-xs text-amber-100 placeholder:text-amber-200/30 outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={resetPhone.length !== 10 || resetPassword.length < 6 || resetPassword !== resetConfirmPassword || isSubmittingAuth}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-300"
+            >
+              {isSubmittingAuth ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span>Updating Password...</span>
+                </>
+              ) : (
+                <span>Update Password</span>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   // AUXILIARY MODALS: SUPPORT, RULES & RESPONSIBLE GAMING
@@ -1765,112 +1829,106 @@ export default function MobileApp() {
           </div>
 
           {authMode === 'login' ? (
-            loginStep === 'phone' ? (
-              <div className="space-y-3.5">
-                <div>
-                  <label className="text-xs uppercase tracking-wider text-amber-200/80 font-bold block mb-1.5">
-                    Mobile Number
-                  </label>
-                  <div className="flex items-center bg-[#18130e] border border-amber-500/30 rounded-xl px-4 py-3 focus-within:border-amber-400">
-                    <span className="text-amber-300 text-sm font-black mr-3 border-r border-amber-500/30 pr-3">+91</span>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={phoneNumber}
-                      onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter 10-digit number"
-                      className="bg-transparent text-amber-100 font-mono-numbers text-base outline-none w-full placeholder:text-amber-200/30 font-semibold"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleSendOtpClick}
-                  disabled={phoneNumber.length !== 10 || isSubmittingAuth}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-amber-300 shadow-md shadow-amber-500/20"
-                >
-                  {sendingOtp ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Sending OTP Code...</span>
-                    </>
-                  ) : (
-                    <span>Send Verification Code</span>
-                  )}
-                </button>
-
-                <p className="text-[11px] text-center text-amber-200/70">
-                  Demo: 9999999999, code 121212. That balance is play money and cannot be withdrawn.
-                </p>
-
-                {demoLoginEnabled && (
-                  <div className="pt-2 space-y-2">
-                    <div className="relative flex py-1 items-center">
-                      <div className="flex-grow border-t border-white/[0.08]" />
-                      <span className="flex-shrink mx-3 text-[10px] font-bold text-amber-400 uppercase tracking-widest font-mono-numbers">
-                        ⚡ INSTANT TEST PLAY
-                      </span>
-                      <div className="flex-grow border-t border-white/[0.08]" />
-                    </div>
-
-                    <button
-                      type="button"
-                      id="demo-login-btn"
-                      onClick={handleShowcaseLoginClick}
-                      disabled={isSubmittingAuth}
-                      className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable shadow-lg shadow-amber-500/25 hover:brightness-110 transition-all flex items-center justify-center gap-2 border-2 border-amber-300"
-                    >
-                      <Zap className="w-4 h-4 fill-black text-black shrink-0" />
-                      <span>Demo Login with ₹1,00,000</span>
-                    </button>
-                    <p className="text-[11px] text-center text-amber-200/70 font-medium leading-tight">
-                      Instant access with ₹1,00,000 demo credits to play all picture rooms
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4 animate-slide-up">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs uppercase tracking-wider text-amber-200/80 font-bold">
-                      6-Digit OTP Code
-                    </label>
-                    <button onClick={() => setLoginStep('phone')} className="text-xs text-amber-400 font-semibold hover:underline">
-                      Change Number
-                    </button>
-                  </div>
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+              <div>
+                <label className="text-xs uppercase tracking-wider text-amber-200/80 font-bold block mb-1.5">
+                  Mobile Number
+                </label>
+                <div className="flex items-center bg-[#18130e] border border-amber-500/30 rounded-xl px-4 py-3 focus-within:border-amber-400">
+                  <span className="text-amber-300 text-sm font-black mr-3 border-r border-amber-500/30 pr-3">+91</span>
                   <input
-                    type="text"
+                    type="tel"
                     inputMode="numeric"
-                    maxLength={6}
-                    value={otpInput}
-                    onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter verification code"
-                    className="w-full bg-[#18130e] border border-amber-500/30 rounded-xl px-4 py-3.5 text-center text-2xl font-mono-numbers tracking-widest text-amber-100 outline-none focus:border-amber-400"
+                    autoComplete="tel"
+                    maxLength={10}
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 10-digit number"
+                    className="bg-transparent text-amber-100 font-mono-numbers text-base outline-none w-full placeholder:text-amber-200/30 font-semibold"
                   />
                 </div>
-
-                <button
-                  onClick={handleVerifyOtpClick}
-                  disabled={!otpInput || isSubmittingAuth}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable flex items-center justify-center gap-2 border border-amber-300 shadow-md shadow-amber-500/20"
-                >
-                  {isSubmittingAuth ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Verifying Code...</span>
-                    </>
-                  ) : (
-                    <span>Verify & Continue</span>
-                  )}
-                </button>
               </div>
-            )
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-xs uppercase tracking-wider text-amber-200/80 font-bold">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPhone(phoneNumber);
+                      setForgotModalOpen(true);
+                    }}
+                    className="text-xs text-amber-400 hover:text-amber-300 font-semibold hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                <div className="flex items-center bg-[#18130e] border border-amber-500/30 rounded-xl px-4 py-3 focus-within:border-amber-400">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="bg-transparent text-amber-100 text-base outline-none w-full placeholder:text-amber-200/30 font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-amber-400/80 hover:text-amber-300 p-1 shrink-0 ml-2 pressable"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={phoneNumber.length !== 10 || password.length < 6 || isSubmittingAuth}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-amber-300 shadow-md shadow-amber-500/20"
+              >
+                {isSubmittingAuth ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <span>Sign In</span>
+                )}
+              </button>
+
+              {demoLoginEnabled && (
+                <div className="pt-2 space-y-2">
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-white/[0.08]" />
+                    <span className="flex-shrink mx-3 text-[10px] font-bold text-amber-400 uppercase tracking-widest font-mono-numbers">
+                      ⚡ INSTANT TEST PLAY
+                    </span>
+                    <div className="flex-grow border-t border-white/[0.08]" />
+                  </div>
+
+                  <button
+                    type="button"
+                    id="demo-login-btn"
+                    onClick={handleShowcaseLoginClick}
+                    disabled={isSubmittingAuth}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable shadow-lg shadow-amber-500/25 hover:brightness-110 transition-all flex items-center justify-center gap-2 border-2 border-amber-300"
+                  >
+                    <Zap className="w-4 h-4 fill-black text-black shrink-0" />
+                    <span>Demo Login with ₹1,00,000</span>
+                  </button>
+                  <p className="text-[11px] text-center text-amber-200/70 font-medium leading-tight">
+                    Instant access with ₹1,00,000 demo credits to play all picture rooms
+                  </p>
+                </div>
+              )}
+            </form>
           ) : (
             /* ── NEW PLAYER REGISTRATION ONBOARDING ── */
-            <div className="space-y-3.5 animate-slide-up text-xs">
+            <form onSubmit={handleRegisterSubmit} className="space-y-3 animate-slide-up text-xs">
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
                   Full Legal Name (as per Bank / Aadhaar) *
@@ -1884,7 +1942,7 @@ export default function MobileApp() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
                     Mobile (+91) *
@@ -1892,6 +1950,7 @@ export default function MobileApp() {
                   <input
                     type="tel"
                     inputMode="numeric"
+                    autoComplete="tel"
                     maxLength={10}
                     placeholder="9876543210"
                     value={regForm.phone}
@@ -1913,9 +1972,48 @@ export default function MobileApp() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
+                    Password (min 6 chars) *
+                  </label>
+                  <div className="flex items-center bg-[#18130e] border border-amber-500/30 rounded-xl px-3 py-2 focus-within:border-amber-400">
+                    <input
+                      type={regForm.showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      placeholder="Create password"
+                      value={regForm.password}
+                      onChange={e => setRegForm({ ...regForm, password: e.target.value })}
+                      className="bg-transparent text-amber-100 placeholder:text-amber-200/30 text-xs outline-none w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRegForm({ ...regForm, showPassword: !regForm.showPassword })}
+                      className="text-amber-400/80 hover:text-amber-300 p-0.5 ml-1 pressable"
+                    >
+                      {regForm.showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type={regForm.showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="Repeat password"
+                    value={regForm.confirmPassword}
+                    onChange={e => setRegForm({ ...regForm, confirmPassword: e.target.value })}
+                    className="w-full bg-[#18130e] border border-amber-500/30 rounded-xl px-3 py-2 text-xs text-amber-100 placeholder:text-amber-200/30 outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
-                  Email Address
+                  Email Address (Optional)
                 </label>
                 <input
                   type="email"
@@ -1928,7 +2026,7 @@ export default function MobileApp() {
 
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-amber-200/80 font-bold block mb-1">
-                  Payout UPI ID
+                  Payout UPI ID (Optional)
                 </label>
                 <input
                   type="text"
@@ -1953,20 +2051,28 @@ export default function MobileApp() {
               </div>
 
               <button
-                disabled={!regForm.fullName || regForm.phone.length !== 10 || !regForm.ageConfirmed || isSubmittingAuth}
-                onClick={registrationToken ? handleRegisterSubmit : handleRegistrationVerificationClick}
+                type="submit"
+                disabled={
+                  !regForm.fullName.trim() ||
+                  regForm.phone.length !== 10 ||
+                  !regForm.state.trim() ||
+                  regForm.password.length < 6 ||
+                  regForm.password !== regForm.confirmPassword ||
+                  !regForm.ageConfirmed ||
+                  isSubmittingAuth
+                }
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 border border-amber-300"
               >
                 {isSubmittingAuth ? (
                   <>
                     <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    <span>{registrationToken ? 'Registering Player...' : 'Sending verification code...'}</span>
+                    <span>Registering Player...</span>
                   </>
                 ) : (
-                  <span>{registrationToken ? 'Complete Registration' : 'Verify Phone to Continue'}</span>
+                  <span>Register & Play</span>
                 )}
               </button>
-            </div>
+            </form>
           )}
         </div>
 
@@ -1995,7 +2101,8 @@ export default function MobileApp() {
           </div>
         </div>
 
-        {/* Support & Rules Modals available on Login Screen */}
+        {/* Support, Rules & Password Modals available on Login Screen */}
+        {renderForgotPasswordModal()}
         {renderSupportModal()}
         {renderHelpRulesModal()}
       </div>
@@ -2461,7 +2568,7 @@ export default function MobileApp() {
                   key={val}
                   onClick={() => {
                     setSelectedChip(val);
-                    sound.playChip();
+                    sound.playCoin();
                   }}
                   className={`py-2 rounded-xl text-xs font-mono-numbers font-black transition-all pressable ${
                     selectedChip === val
@@ -2918,7 +3025,7 @@ export default function MobileApp() {
       )}
 
       {/* ── FIXED BOTTOM NAVIGATION DOCK ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#140f0a]/95 backdrop-blur-md border-t border-amber-500/25 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-6 max-w-md mx-auto flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.7)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#140f0a]/95 backdrop-blur-md border-t border-amber-500/25 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 xs:px-6 max-w-md mx-auto flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.7)]">
         {[
           { id: 'lobby', label: 'Lobby', icon: Trophy },
           { id: 'arena', label: 'Arena', icon: Play },
@@ -2931,8 +3038,12 @@ export default function MobileApp() {
           return (
             <button
               key={item.id}
-              onClick={() => item.id === 'arena' ? openArena() : setActiveTab(item.id as NavTab)}
-              className={`flex flex-col items-center gap-1 py-1 pressable transition-all duration-200 ${
+              onClick={() => {
+                sound.playButtonClick();
+                if (item.id === 'arena') openArena();
+                else setActiveTab(item.id as NavTab);
+              }}
+              className={`flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 pressable transition-all duration-200 ${
                 isActive ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] scale-105' : 'text-amber-200/50 hover:text-amber-200'
               }`}
             >

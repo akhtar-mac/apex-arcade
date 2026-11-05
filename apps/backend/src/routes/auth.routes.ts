@@ -105,11 +105,18 @@ authRouter.post('/register', authRateLimiter, async (req: Request, res: Response
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
       return res.status(400).json({ success: false, error: 'Enter a valid email address, or leave it blank.' });
     }
-    if (!AuthService.verifyRegistrationToken(String(registrationToken || ''), cleanPhone)) {
-      return res.status(400).json({ success: false, error: 'Registration verification expired. Request a new OTP.' });
+    // Direct registration without OTP: registrationToken is optional for backward compatibility
+    if (registrationToken && !AuthService.verifyRegistrationToken(String(registrationToken), cleanPhone)) {
+      // If client supplied an invalid/expired token, notify but allow direct registration if password is provided
+      if (!password) {
+        return res.status(400).json({ success: false, error: 'Registration verification expired. Please provide a password.' });
+      }
     }
     if (await Ledger.findUserByPhone(cleanPhone)) {
       return res.status(400).json({ success: false, error: 'Phone number already registered. Please sign in.' });
+    }
+    if (password && String(password).length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters.' });
     }
 
     const passwordHash = await bcrypt.hash(password || cryptoRandom(), 10);
@@ -128,8 +135,33 @@ authRouter.post('/register', authRateLimiter, async (req: Request, res: Response
     attachSession(res, tokens.accessToken);
     return res.status(201).json({
       success: true,
-      message: `Welcome, ${fullName}. Your wallet starts at ₹0. Add money by paying the published QR.`,
+      message: `Welcome, ${fullName}. Your account has been registered successfully.`,
       data: { user: publicUser(created.user), wallet: created.wallet, ...tokens }
+    });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+authRouter.post('/reset-password', authRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const cleanPhone = (req.body.phoneNumber || '').toString().replace(/\D/g, '').slice(-10);
+    const newPassword = (req.body.newPassword || req.body.password || '').toString();
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit mobile number.' });
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long.' });
+    }
+    const user = await Ledger.findUserByPhone(cleanPhone);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'No account registered with this mobile number.' });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await Ledger.updatePassword(user.id, passwordHash);
+    return res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.'
     });
   } catch (err: any) {
     return res.status(400).json({ success: false, error: err.message });
