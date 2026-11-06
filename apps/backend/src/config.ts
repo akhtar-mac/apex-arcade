@@ -32,8 +32,8 @@ export const Config = {
     : '',
   regulatedFeaturesEnabled: !isPublicDeployment || process.env.ENABLE_REGULATED_FEATURES === 'true',
   enableDemoLogin: !isPublicDeployment && process.env.ENABLE_DEMO_LOGIN === 'true',
-  socketMaxConnections: parseInt(process.env.SOCKET_MAX_CONNECTIONS || '5000', 10),
-  socketMaxConnectionsPerUser: parseInt(process.env.SOCKET_MAX_CONNECTIONS_PER_USER || '5', 10),
+  socketMaxConnections: parseInt(process.env.SOCKET_MAX_CONNECTIONS || '25000', 10),
+  socketMaxConnectionsPerUser: parseInt(process.env.SOCKET_MAX_CONNECTIONS_PER_USER || '10', 10),
   corsOrigins: (process.env.CORS_ORIGINS || [
     'http://localhost:5173', 'http://127.0.0.1:5173',
     'http://localhost:5174', 'http://127.0.0.1:5174',

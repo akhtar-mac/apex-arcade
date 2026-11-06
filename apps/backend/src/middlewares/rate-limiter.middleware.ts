@@ -21,11 +21,10 @@ export function createRateLimiter(config: RateLimitConfig) {
     const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     const phone = String(req.body?.phoneNumber || '').replace(/\D/g, '').slice(-10);
     const userId = String((req as any).user?.userId || '');
-    const identifiers = Array.from(new Set([
-      `ip:${ip}`,
-      phone ? `phone:${phone}` : '',
-      userId ? `user:${userId}` : ''
-    ].filter(Boolean)));
+    // Prefer granular identity (userId > phone > IP) for high-scale concurrency (5,000+ players)
+    // Prevents cellular CGNAT / shared WiFi collisions while strictly enforcing per-player quotas
+    const primaryId = userId ? `user:${userId}` : (phone ? `phone:${phone}` : `ip:${ip}`);
+    const identifiers = [primaryId];
     const now = Date.now();
     const mode = rateLimitMode(RedisService.isConnected(), config.failClosed === true);
 

@@ -182,6 +182,24 @@ function compressImage(file: File): Promise<string> {
 }
 
 let memoryAccessToken = '';
+try {
+  if (typeof window !== 'undefined') {
+    memoryAccessToken = sessionStorage.getItem('_surrat_session_token') || '';
+  }
+} catch {}
+
+function setMemoryToken(token: string) {
+  memoryAccessToken = token;
+  try {
+    if (typeof window !== 'undefined') {
+      if (token) {
+        sessionStorage.setItem('_surrat_session_token', token);
+      } else {
+        sessionStorage.removeItem('_surrat_session_token');
+      }
+    }
+  } catch {}
+}
 
 if (typeof window !== 'undefined') {
   const nativeFetch = window.fetch.bind(window);
@@ -208,6 +226,9 @@ export default function MobileApp() {
   const [activeTab, setActiveTab] = useState<NavTab>('lobby');
   const [walletReady, setWalletReady] = useState(false);
   const [hasPaidDeposit, setHasPaidDeposit] = useState(false);
+  const [isWaitingP2PApproval, setIsWaitingP2PApproval] = useState(false);
+  const [submittedUtrRef, setSubmittedUtrRef] = useState('');
+  const [isSyncingWallet, setIsSyncingWallet] = useState(false);
   const [fundWizardOpen, setFundWizardOpen] = useState(false);
   const [offerDismissed, setOfferDismissed] = useState(false);
 
@@ -314,26 +335,107 @@ export default function MobileApp() {
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);
   const demoLoginEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => {
-        const user = data?.data?.user;
-        const wallet = data?.data?.wallet;
-        if (!data?.success || !user) return;
-        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+  // Authoritative Wallet & Session Synchronization
+  const refreshWallet = useCallback(async (showFeedback = false) => {
+    try {
+      setIsSyncingWallet(true);
+      const token = memoryAccessToken;
+      const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success && data?.data) {
+        const { user, wallet } = data.data;
+        if (wallet?.balance !== undefined) {
+          const newBal = Number(wallet.balance);
+          setBalance(prev => {
+            if (prev !== newBal && newBal > prev) {
+              sound.playCoin();
+              setBalanceFlash(true);
+              setTimeout(() => setBalanceFlash(false), 1200);
+            }
+            return newBal;
+          });
+          if (newBal > 0) setHasPaidDeposit(true);
+        }
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
-        if (user.id) setAccountId(user.id);
-        if (user.fullName) setUserName(user.fullName);
-        if (user.phoneNumber) setPhoneNumber(user.phoneNumber);
-        if (user.upiId) setWithdrawUpi(user.upiId);
-        if (user.email) setUserEmail(user.email);
-        if (user.state) setUserState(user.state);
+        if (user?.id) setAccountId(user.id);
+        if (user?.fullName) setUserName(user.fullName);
+        if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
+        if (user?.upiId) setWithdrawUpi(user.upiId);
+        if (user?.email) setUserEmail(user.email);
+        if (user?.state) setUserState(user.state);
         setIsLoggedIn(true);
         setWalletReady(true);
-      })
-      .catch(() => undefined);
+        if (showFeedback) {
+          showToast(`Wallet synced: ₹${Number(wallet?.balance || 0).toLocaleString('en-IN')}`);
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setIsSyncingWallet(false);
+    }
   }, [API_BASE]);
+
+  // Initial session hydration
+  useEffect(() => {
+    refreshWallet(false);
+  }, [refreshWallet]);
+
+  // Sync on tab change
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    refreshWallet(false);
+  }, [isLoggedIn, activeTab, refreshWallet]);
+
+  // Refresh wallet when window / app regains focus
+  useEffect(() => {
+    const onFocus = () => {
+      if (isLoggedIn) refreshWallet(false);
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [isLoggedIn, refreshWallet]);
+
+  // Polling fallback while deposit is pending P2P desk verification
+  useEffect(() => {
+    if (!isWaitingP2PApproval || !isLoggedIn) return;
+    const interval = setInterval(async () => {
+      try {
+        const token = memoryAccessToken;
+        const res = await fetch(`${API_BASE}/api/v1/payments/history?limit=3`, {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.data)) {
+          const approvedTx = data.data.find((tx: any) =>
+            tx.type === 'DEPOSIT' &&
+            tx.status === 'SUCCESS' &&
+            (tx.utrNumber === submittedUtrRef || tx.id === pendingDepositId)
+          );
+          if (approvedTx) {
+            setIsWaitingP2PApproval(false);
+            setDepositModalOpen(false);
+            setPendingDepositId('');
+            setUtrInput('');
+            setPaymentScreenshot(null);
+            sound.playCoin();
+            refreshWallet(false);
+            showToast(`🎉 Deposit Approved! Credited ₹${Number(approvedTx.amount).toLocaleString('en-IN')}`);
+          }
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isWaitingP2PApproval, isLoggedIn, submittedUtrRef, pendingDepositId, refreshWallet, API_BASE]);
 
   // Fetch live active rotated UPI account on mount
   useEffect(() => {
@@ -362,35 +464,6 @@ export default function MobileApp() {
 
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
 
-  // Hydrate user session from local SQL database on app load
-  useEffect(() => {
-    const token = memoryAccessToken;
-    if (token) {
-      fetch(`${API_BASE}/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(res => {
-          if (res?.success && res.data) {
-            const { user, wallet } = res.data;
-            if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
-            if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
-            setWalletReady(true);
-            if (user?.id) setAccountId(user.id);
-            if (user?.fullName) setUserName(user.fullName);
-            if (user?.phoneNumber) setPhoneNumber(user.phoneNumber);
-            if (user?.upiId) setWithdrawUpi(user.upiId);
-            if (user?.email) setUserEmail(user.email);
-            if (user?.state) setUserState(user.state);
-            setIsLoggedIn(true);
-        setActiveTab('lobby');
-        setWalletReady(true);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [API_BASE]);
-
   // Direct Phone + Password Authentication Handlers (No OTP)
   const handleLoginSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -417,8 +490,12 @@ export default function MobileApp() {
       if (data.success && data.data) {
         sound.playSuccess();
         const { user, wallet, accessToken } = data.data;
-        if (accessToken) memoryAccessToken = accessToken;
-        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (accessToken) setMemoryToken(accessToken);
+        if (wallet?.balance !== undefined) {
+          const bal = Number(wallet.balance);
+          setBalance(bal);
+          if (bal > 0) setHasPaidDeposit(true);
+        }
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
         if (user?.id) setAccountId(user.id);
         if (user?.fullName) setUserName(user.fullName);
@@ -502,8 +579,12 @@ export default function MobileApp() {
       if (data.success && data.data) {
         sound.playSuccess();
         const { user, wallet, accessToken } = data.data;
-        if (accessToken) memoryAccessToken = accessToken;
-        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (accessToken) setMemoryToken(accessToken);
+        if (wallet?.balance !== undefined) {
+          const bal = Number(wallet.balance);
+          setBalance(bal);
+          if (bal > 0) setHasPaidDeposit(true);
+        }
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
         if (user?.id) setAccountId(user.id);
         if (user?.fullName) setUserName(user.fullName);
@@ -589,8 +670,12 @@ export default function MobileApp() {
       if (data.success && data.data) {
         sound.playSuccess();
         const { user, wallet, accessToken } = data.data;
-        if (accessToken) memoryAccessToken = accessToken;
-        if (wallet?.balance !== undefined) setBalance(Number(wallet.balance));
+        if (accessToken) setMemoryToken(accessToken);
+        if (wallet?.balance !== undefined) {
+          const bal = Number(wallet.balance);
+          setBalance(bal);
+          if (bal > 0) setHasPaidDeposit(true);
+        }
         if (wallet?.locked !== undefined) setLockedBalance(Number(wallet.locked));
         if (user?.id) setAccountId(user.id);
         if (user?.fullName) setUserName(user.fullName);
@@ -617,7 +702,7 @@ export default function MobileApp() {
   };
 
   const handleLogout = () => {
-    memoryAccessToken = '';
+    setMemoryToken('');
     fetch(`${API_BASE}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => undefined);
     setIsLoggedIn(false);
     setWalletReady(false);
@@ -685,7 +770,7 @@ export default function MobileApp() {
 
   // TRUE REAL-TIME SOCKET.IO ENGINE SYNCHRONIZATION
   useEffect(() => {
-    if (!isLoggedIn || activeTab !== 'arena') return;
+    if (!isLoggedIn) return;
     const socket = io(API_BASE, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
@@ -694,8 +779,10 @@ export default function MobileApp() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      socket.emit('join:room', selectedRoom.id);
-      socket.emit('round:sync', { roomId: selectedRoom.id });
+      if (activeTab === 'arena') {
+        socket.emit('join:room', selectedRoom.id);
+        socket.emit('round:sync', { roomId: selectedRoom.id });
+      }
     });
 
     socket.on('round:sync:response', (data: any) => {
@@ -710,6 +797,7 @@ export default function MobileApp() {
 
         if (typeof data.walletBalance === 'number') {
           setBalance(data.walletBalance);
+          if (data.walletBalance > 0) setHasPaidDeposit(true);
         }
         if (Array.isArray(data.userBets)) {
           const map: { [cardId: number]: number } = {};
@@ -827,7 +915,23 @@ export default function MobileApp() {
 
     socket.on('wallet:update', (data: any) => {
       if (typeof data.balance === 'number') {
-        setBalance(data.balance);
+        const newBal = data.balance;
+        setBalance(prev => {
+          if (newBal > prev) {
+            sound.playCoin();
+            setBalanceFlash(true);
+            setTimeout(() => setBalanceFlash(false), 1200);
+          }
+          return newBal;
+        });
+        if (newBal > 0) setHasPaidDeposit(true);
+        setIsWaitingP2PApproval(false);
+        setDepositModalOpen(false);
+        setPendingDepositId('');
+        setUtrInput('');
+        setPaymentScreenshot(null);
+        const creditStr = data.delta ? `+₹${Number(data.delta).toLocaleString('en-IN')}` : '';
+        showToast(`🎉 Wallet Credited ${creditStr}! Balance: ₹${Number(newBal).toLocaleString('en-IN')}`);
       }
       if (typeof data.locked === 'number') {
         setLockedBalance(data.locked);
@@ -849,8 +953,21 @@ export default function MobileApp() {
       clearInterval(fallbackTimer);
       socket.emit('leave:room', selectedRoom.id);
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [selectedRoom.id, API_BASE, isLoggedIn, activeTab]);
+  }, [API_BASE, isLoggedIn]);
+
+  // Handle arena room subscription separately from global connection
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !isLoggedIn) return;
+    if (activeTab === 'arena') {
+      socket.emit('join:room', selectedRoom.id);
+      socket.emit('round:sync', { roomId: selectedRoom.id });
+    } else {
+      socket.emit('leave:room', selectedRoom.id);
+    }
+  }, [activeTab, selectedRoom.id, isLoggedIn]);
 
   useEffect(() => {
     let stop = false;
@@ -1113,7 +1230,9 @@ export default function MobileApp() {
         showToast(data?.error || 'UTR was not accepted.');
         return;
       }
-      showToast(`UTR ${utrInput} sent to P2P. Your balance updates when they match it.`);
+      setSubmittedUtrRef(utrInput);
+      setIsWaitingP2PApproval(true);
+      showToast(`UTR ${utrInput} submitted! Waiting for P2P desk verification...`);
       setActivityHistory(h => [
         {
           id: `TX-${Date.now()}`,
@@ -1127,10 +1246,8 @@ export default function MobileApp() {
         },
         ...h
       ]);
-      setDepositModalOpen(false);
-      setUtrInput('');
-      setPendingDepositId('');
-      setPaymentScreenshot(null);
+      // Immediately trigger a sync attempt
+      setTimeout(() => refreshWallet(false), 2000);
     } catch {
       showToast('Could not submit the UTR.');
     }
@@ -2155,7 +2272,7 @@ export default function MobileApp() {
 
         {/* Balance & Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Balance Pill */}
+          {/* Balance Pill with quick sync */}
           <div
             onClick={() => setActiveTab('profile')}
             className={`px-2.5 py-1.5 rounded-xl bg-[#1c150e] border border-amber-500/30 flex items-center gap-1.5 cursor-pointer pressable transition-colors ${
@@ -2166,6 +2283,16 @@ export default function MobileApp() {
             <span className="font-mono-numbers font-bold text-xs text-amber-200 whitespace-nowrap">
               ₹{balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                refreshWallet(true);
+              }}
+              title="Refresh Wallet Balance"
+              className="p-0.5 text-amber-400/80 hover:text-amber-200 pressable transition-transform"
+            >
+              <RefreshCw className={`w-3 h-3 ${isSyncingWallet ? 'animate-spin text-amber-300' : ''}`} />
+            </button>
           </div>
 
           {/* Deposit Trigger */}
@@ -2197,6 +2324,22 @@ export default function MobileApp() {
           </button>
         </div>
       </header>
+
+      {/* Sticky P2P Deposit In-Progress Bar */}
+      {isWaitingP2PApproval && (
+        <div
+          onClick={() => setDepositModalOpen(true)}
+          className="bg-amber-500/20 border-b border-amber-500/40 px-3 py-1.5 flex items-center justify-between cursor-pointer pressable animate-pulse z-20"
+        >
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" />
+            <span className="text-[11px] text-amber-200 font-medium truncate">
+              Deposit of ₹{depositAmount.toLocaleString('en-IN')} verifying with P2P desk...
+            </span>
+          </div>
+          <span className="text-[10px] text-amber-300 font-bold underline shrink-0">Live Status</span>
+        </div>
+      )}
 
       {/* ── TOAST NOTIFICATION ── */}
       {toastMessage && (
@@ -3144,195 +3287,250 @@ export default function MobileApp() {
               </button>
             </div>
 
-            {/* Segmented Switcher */}
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#1c150e] border border-amber-500/25">
-              <button
-                onClick={() => setDepositTab('instant')}
-                className={`py-2 rounded-lg text-xs font-bold transition-all pressable ${
-                  depositTab === 'instant'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md font-black'
-                    : 'text-amber-200/60 hover:text-white'
-                }`}
-              >
-                Pay with UPI
-              </button>
-              <button
-                onClick={() => setDepositTab('p2p')}
-                className={`py-2 rounded-lg text-xs font-bold transition-all pressable ${
-                  depositTab === 'p2p'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md font-black'
-                    : 'text-amber-200/60 hover:text-white'
-                }`}
-              >
-                Enter UTR
-              </button>
-            </div>
-
-            {depositTab === 'instant' ? (
-              <div className="space-y-3.5">
+            {isWaitingP2PApproval ? (
+              <div className="space-y-4 p-4 rounded-2xl bg-[#1c150e] border border-amber-500/40 text-center animate-pulse">
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto text-amber-300">
+                  <RefreshCw className="w-7 h-7 animate-spin text-amber-400" />
+                </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1.5">
-                    Select Amount
-                  </label>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[200, 500, 1000, 2500].map(amt => (
-                      <button
-                        key={amt}
-                        onClick={() => setDepositAmount(amt)}
-                        className={`py-2.5 rounded-xl font-mono-numbers font-black text-xs pressable ${
-                          depositAmount === amt
-                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border border-amber-300'
-                            : 'bg-[#221810] border border-amber-500/25 text-amber-200 hover:border-amber-400'
-                        }`}
-                      >
-                        ₹{amt}
-                      </button>
-                    ))}
+                  <h4 className="text-base font-black text-amber-200 font-serif">P2P Desk Verification in Progress</h4>
+                  <p className="text-xs text-amber-200/70 mt-1">
+                    Matching your bank reference. Your balance credits automatically as soon as the desk approves it!
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-[#221810] border border-amber-500/25 text-left text-xs space-y-1.5 font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-amber-200/60">UTR Reference:</span>
+                    <span className="text-amber-300 font-bold">{submittedUtrRef || utrInput}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-200/60">Deposit Amount:</span>
+                    <span className="text-amber-300 font-bold">₹{depositAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-200/60">Bonus (+50%):</span>
+                    <span className="text-emerald-400 font-bold">+₹{(depositAmount * 0.5).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-amber-500/20 pt-1">
+                    <span className="text-amber-200/80">Total to Receive:</span>
+                    <span className="text-amber-100 font-black">₹{(depositAmount * 1.5).toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#1c150e] border border-amber-500/20 flex items-center justify-between text-xs text-amber-200/70">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Pays the live QR. You enter the UTR next.</span>
-                  </div>
-                  <span className="text-amber-400 font-mono-numbers font-bold">Fast UTR Desk</span>
+                <div className="flex items-center justify-center gap-2 text-[11px] text-amber-300/80">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Checking live status every 3 seconds...</span>
                 </div>
 
-                <button
-                  disabled={isAutoPaying}
-                  onClick={handleExecuteInstantDeposit}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable flex items-center justify-center gap-2 border border-amber-300 shadow-md shadow-amber-500/20 disabled:opacity-50"
-                >
-                  {isAutoPaying ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Verifying Bank Settlement...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4 fill-black" />
-                      <span>Open UPI for ₹{depositAmount.toLocaleString('en-IN')}</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => refreshWallet(true)}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs pressable flex items-center justify-center gap-1.5 border border-amber-300 shadow-md shadow-amber-500/20"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingWallet ? 'animate-spin' : ''}`} />
+                    <span>Check Status Now</span>
+                  </button>
+                  <button
+                    onClick={() => setDepositModalOpen(false)}
+                    className="px-4 py-3 rounded-xl bg-[#221810] border border-amber-500/30 text-amber-200/70 hover:text-white text-xs font-bold pressable"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3.5">
-                <div className="p-3.5 rounded-xl bg-[#1c150e] border border-amber-500/25 flex flex-col items-center">
-                  {/* Clean QR Display */}
-                  <div className="w-32 h-32 bg-white p-2 rounded-xl mb-2 flex items-center justify-center shadow-lg border border-amber-500/30">
-                    {activeUpiInfo.upiId ? (
-                      <img
-                        src={activeUpiInfo.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi%3A%2F%2Fpay%3Fpa%3D${encodeURIComponent(activeUpiInfo.upiId)}%26pn%3D${encodeURIComponent(activeUpiInfo.holderName || 'Apex')}%26cu%3DINR`}
-                        alt="UPI Payment QR"
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    ) : (
-                      <p className="text-[11px] text-center text-slate-500 px-2">No QR published yet.</p>
-                    )}
-                  </div>
-
-                  {/* Download QR to Gallery Button */}
+              <>
+                {/* Segmented Switcher */}
+                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#1c150e] border border-amber-500/25">
                   <button
-                    onClick={() => {
-                      const qrUrl = activeUpiInfo.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi%3A%2F%2Fpay%3Fpa%3D${encodeURIComponent(activeUpiInfo.upiId)}%26pn%3DApexArcade%26cu%3DINR`;
-                      const link = document.createElement('a');
-                      link.href = qrUrl;
-                      link.download = `APEX_UPI_QR_${activeUpiInfo.upiId}.png`;
-                      link.target = '_blank';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      showToast('📥 QR code saved to gallery! Scan via GPay / PhonePe.');
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 font-bold text-xs flex items-center justify-center gap-1.5 pressable border border-amber-500/30 mb-2"
+                    onClick={() => setDepositTab('instant')}
+                    className={`py-2 rounded-lg text-xs font-bold transition-all pressable ${
+                      depositTab === 'instant'
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md font-black'
+                        : 'text-amber-200/60 hover:text-white'
+                    }`}
                   >
-                    <Download className="w-3.5 h-3.5 text-amber-400" />
-                    <span>📥 Download QR to Gallery</span>
+                    Pay with UPI
                   </button>
+                  <button
+                    onClick={() => setDepositTab('p2p')}
+                    className={`py-2 rounded-lg text-xs font-bold transition-all pressable ${
+                      depositTab === 'p2p'
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md font-black'
+                        : 'text-amber-200/60 hover:text-white'
+                    }`}
+                  >
+                    Enter UTR
+                  </button>
+                </div>
 
-                  <div className="flex items-center gap-2 text-xs font-mono-numbers text-amber-100">
-                    <span>{activeUpiInfo.upiId}</span>
+                {depositTab === 'instant' ? (
+                  <div className="space-y-3.5">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1.5">
+                        Select Amount
+                      </label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[200, 500, 1000, 2500].map(amt => (
+                          <button
+                            key={amt}
+                            onClick={() => setDepositAmount(amt)}
+                            className={`py-2.5 rounded-xl font-mono-numbers font-black text-xs pressable ${
+                              depositAmount === amt
+                                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border border-amber-300'
+                                : 'bg-[#221810] border border-amber-500/25 text-amber-200 hover:border-amber-400'
+                            }`}
+                          >
+                            ₹{amt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#1c150e] border border-amber-500/20 flex items-center justify-between text-xs text-amber-200/70">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>Pays the live QR. You enter the UTR next.</span>
+                      </div>
+                      <span className="text-amber-400 font-mono-numbers font-bold">Fast UTR Desk</span>
+                    </div>
+
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(activeUpiInfo.upiId);
-                        showToast('Rotated UPI ID copied!');
-                      }}
-                      className="text-amber-400 text-xs font-bold hover:underline"
+                      disabled={isAutoPaying}
+                      onClick={handleExecuteInstantDeposit}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable flex items-center justify-center gap-2 border border-amber-300 shadow-md shadow-amber-500/20 disabled:opacity-50"
                     >
-                      Copy
+                      {isAutoPaying ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                          <span>Verifying Bank Settlement...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 fill-black" />
+                          <span>Open UPI for ₹{depositAmount.toLocaleString('en-IN')}</span>
+                        </>
+                      )}
                     </button>
                   </div>
-                  <span className="text-[10px] text-amber-200/60 mt-1">
-                    {activeUpiInfo.holderName} • {activeUpiInfo.bankName}
-                  </span>
-                  <span className="mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[9px] font-mono border border-amber-500/30">
-                    ⚡ Auto-Rotated Channel (Daily Bank Limits Monitored)
-                  </span>
-                </div>
-
-                {/* Screenshot Upload for Payment Proof */}
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
-                    Payment Done Screenshot (Fast Verification)
-                  </label>
-                  {paymentScreenshot ? (
-                    <div className="p-2 rounded-xl bg-[#1c150e] border border-amber-500/40 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img src={paymentScreenshot} alt="Proof" className="w-8 h-8 rounded-lg object-cover border border-amber-500/30" />
-                        <span className="text-xs text-amber-100 truncate max-w-[170px]">payment_receipt.jpg</span>
+                ) : (
+                  <div className="space-y-3.5">
+                    <div className="p-3.5 rounded-xl bg-[#1c150e] border border-amber-500/25 flex flex-col items-center">
+                      {/* Clean QR Display */}
+                      <div className="w-32 h-32 bg-white p-2 rounded-xl mb-2 flex items-center justify-center shadow-lg border border-amber-500/30">
+                        {activeUpiInfo.upiId ? (
+                          <img
+                            src={activeUpiInfo.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi%3A%2F%2Fpay%3Fpa%3D${encodeURIComponent(activeUpiInfo.upiId)}%26pn%3D${encodeURIComponent(activeUpiInfo.holderName || 'Apex')}%26cu%3DINR`}
+                            alt="UPI Payment QR"
+                            className="w-full h-full object-contain rounded-lg"
+                          />
+                        ) : (
+                          <p className="text-[11px] text-center text-slate-500 px-2">No QR published yet.</p>
+                        )}
                       </div>
-                      <button onClick={() => setPaymentScreenshot(null)} className="text-amber-200/60 hover:text-white p-1">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="w-full py-2.5 px-3 rounded-xl bg-[#1c150e] border border-dashed border-amber-500/30 hover:border-amber-400 text-center flex items-center justify-center gap-2 cursor-pointer pressable">
-                      <Upload className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs text-amber-200/70">Tap to upload payment screenshot</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            try {
-                              const compressed = await compressImage(file);
-                              setPaymentScreenshot(compressed);
-                              showToast('Screenshot attached successfully.');
-                            } catch {
-                              showToast('Could not process screenshot. Try another.');
-                            }
-                          }
+
+                      {/* Download QR to Gallery Button */}
+                      <button
+                        onClick={() => {
+                          const qrUrl = activeUpiInfo.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi%3A%2F%2Fpay%3Fpa%3D${encodeURIComponent(activeUpiInfo.upiId)}%26pn%3DApexArcade%26cu%3DINR`;
+                          const link = document.createElement('a');
+                          link.href = qrUrl;
+                          link.download = `APEX_UPI_QR_${activeUpiInfo.upiId}.png`;
+                          link.target = '_blank';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          showToast('📥 QR code saved to gallery! Scan via GPay / PhonePe.');
                         }}
-                        className="hidden"
+                        className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 font-bold text-xs flex items-center justify-center gap-1.5 pressable border border-amber-500/30 mb-2"
+                      >
+                        <Download className="w-3.5 h-3.5 text-amber-400" />
+                        <span>📥 Download QR to Gallery</span>
+                      </button>
+
+                      <div className="flex items-center gap-2 text-xs font-mono-numbers text-amber-100">
+                        <span>{activeUpiInfo.upiId}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(activeUpiInfo.upiId);
+                            showToast('Rotated UPI ID copied!');
+                          }}
+                          className="text-amber-400 text-xs font-bold hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-amber-200/60 mt-1">
+                        {activeUpiInfo.holderName} • {activeUpiInfo.bankName}
+                      </span>
+                      <span className="mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[9px] font-mono border border-amber-500/30">
+                        ⚡ Auto-Rotated Channel (Daily Bank Limits Monitored)
+                      </span>
+                    </div>
+
+                    {/* Screenshot Upload for Payment Proof */}
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
+                        Payment Done Screenshot (Fast Verification)
+                      </label>
+                      {paymentScreenshot ? (
+                        <div className="p-2 rounded-xl bg-[#1c150e] border border-amber-500/40 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <img src={paymentScreenshot} alt="Proof" className="w-8 h-8 rounded-lg object-cover border border-amber-500/30" />
+                            <span className="text-xs text-amber-100 truncate max-w-[170px]">payment_receipt.jpg</span>
+                          </div>
+                          <button onClick={() => setPaymentScreenshot(null)} className="text-amber-200/60 hover:text-white p-1">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full py-2.5 px-3 rounded-xl bg-[#1c150e] border border-dashed border-amber-500/30 hover:border-amber-400 text-center flex items-center justify-center gap-2 cursor-pointer pressable">
+                          <Upload className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-xs text-amber-200/70">Tap to upload payment screenshot</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async e => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const compressed = await compressImage(file);
+                                  setPaymentScreenshot(compressed);
+                                  showToast('Screenshot attached successfully.');
+                                } catch {
+                                  showToast('Could not process screenshot. Try another.');
+                                }
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
+                        12-Digit Bank UTR Reference
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        placeholder="e.g. 427189012345"
+                        value={utrInput}
+                        onChange={e => setUtrInput(e.target.value.replace(/\D/g, ''))}
+                        className="w-full bg-[#1c150e] border border-amber-500/30 rounded-xl px-4 py-2.5 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-sm outline-none focus:border-amber-400"
                       />
-                    </label>
-                  )}
-                </div>
+                    </div>
 
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
-                    12-Digit Bank UTR Reference
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={12}
-                    placeholder="e.g. 427189012345"
-                    value={utrInput}
-                    onChange={e => setUtrInput(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-[#1c150e] border border-amber-500/30 rounded-xl px-4 py-2.5 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-sm outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <button
-                  onClick={handleExecuteManualUtrDeposit}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-sm pressable border border-amber-300 shadow-md shadow-amber-500/20"
-                >
-                  Submit UTR for Approval
-                </button>
-              </div>
+                    <button
+                      onClick={handleExecuteManualUtrDeposit}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-sm pressable border border-amber-300 shadow-md shadow-amber-500/20"
+                    >
+                      Submit UTR for Approval
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

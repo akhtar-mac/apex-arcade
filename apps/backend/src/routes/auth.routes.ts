@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { otpRateLimiter, authRateLimiter } from '../middlewares/rate-limiter.middleware.js';
 import { Ledger } from '../services/ledger.service.js';
+import { WalletService } from '../services/wallet.service.js';
 import { ComplianceService } from '../services/compliance.service.js';
 import bcrypt from 'bcryptjs';
 import { attachSession, clearSessionCookie, readAccessToken } from '../services/session-cookie.js';
@@ -311,9 +312,18 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   if (!user) {
     return res.status(401).json({ success: false, error: 'Account is not on the ledger.' });
   }
+  const wallet = await WalletService.getBalance(user.id);
+  const mem = Ledger.walletOf(user.id);
   return res.json({
     success: true,
-    data: { user: publicUser(user), wallet: Ledger.walletOf(user.id) }
+    data: {
+      user: publicUser(user),
+      wallet: {
+        ...mem,
+        balance: wallet.balance,
+        locked: wallet.locked
+      }
+    }
   });
 });
 
