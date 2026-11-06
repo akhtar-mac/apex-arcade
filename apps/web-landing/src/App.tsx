@@ -224,20 +224,19 @@ export default function LandingApp() {
 
           {/* CTA Buttons */}
           <div className="float-up delay-300 flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
-            <a
-              href={playerUrl}
-              className="glow-btn w-full sm:w-auto bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-amber-500/25 border border-amber-300"
-            >
-              <Play className="w-5 h-5 fill-black" />
-              Play Online
-            </a>
             <button
               onClick={() => setDownloadModal(true)}
+              className="glow-btn w-full sm:w-auto bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition shadow-xl shadow-amber-500/25 border border-amber-300"
+            >
+              <Download className="w-5 h-5" />
+              Download Android App (APK)
+            </button>
+            <a
+              href="#mechanics"
               className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-[#1c150e] hover:bg-[#261d15] border border-amber-500/30 font-bold text-sm text-amber-200 transition flex items-center justify-center gap-2 hover:text-white"
             >
-              <Download className="w-4 h-4 text-amber-400" />
-              Download Android APK
-            </button>
+              How It Works & 14 Pictures
+            </a>
           </div>
 
           {/* Hero Stats Bar */}
@@ -627,13 +626,6 @@ export default function LandingApp() {
                   Release Pending
                 </button>
               )}
-              <a
-                href={playerUrl}
-                className="w-full py-3 rounded-2xl bg-[#1c150e] hover:bg-[#261d15] text-amber-200 font-bold text-xs flex items-center justify-center gap-2 border border-amber-500/30 transition hover:text-white"
-              >
-                <Play className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                Play Instantly in Browser (No Download Required)
-              </a>
             </div>
           </div>
         </div>
