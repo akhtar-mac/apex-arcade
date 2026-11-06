@@ -18,6 +18,15 @@
     box-sizing: border-box;
   }
 
+  html, body, #root {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden !important;
+    position: relative;
+    margin: 0;
+    padding: 0;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     user-select: none;
@@ -28,8 +37,8 @@
     overflow-x: hidden;
     min-height: 100vh;
     min-height: 100dvh;
-    overscroll-behavior-y: none;
-    touch-action: manipulation;
+    overscroll-behavior: none;
+    touch-action: pan-y;
   }
 
   .no-scrollbar::-webkit-scrollbar {

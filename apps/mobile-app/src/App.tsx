@@ -225,6 +225,13 @@ export default function MobileApp() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('lobby');
+  const activeTabRef = useRef<NavTab>('lobby');
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    if (activeTab !== 'arena') {
+      sound.stopAll();
+    }
+  }, [activeTab]);
   const [walletReady, setWalletReady] = useState(false);
   const [hasPaidDeposit, setHasPaidDeposit] = useState(false);
   const [isWaitingP2PApproval, setIsWaitingP2PApproval] = useState(false);
@@ -848,9 +855,11 @@ export default function MobileApp() {
     socket.on('round:locked', (data: any) => {
       if (data.roomId === selectedRoom.id) {
         setRoundStatus('LOCKED');
-        sound.playBetClosed();
-        HapticFeedback.roundLocked();
-        showToast('🔒 Bets Closed! Drawing winning card...');
+        if (activeTabRef.current === 'arena') {
+          sound.playBetClosed();
+          HapticFeedback.roundLocked();
+          showToast('🔒 Bets Closed! Drawing winning card...');
+        }
       }
     });
 
@@ -874,9 +883,11 @@ export default function MobileApp() {
           const payout = userBet * (Number(data.multiplier) || arenaMultiplier);
           setBalanceFlash(true);
           setTimeout(() => setBalanceFlash(false), 800);
-          sound.playBetWon(cardObj.name);
-          HapticFeedback.winCelebration();
-          setWinModalData({ card: cardObj, winAmount: payout });
+          if (activeTabRef.current === 'arena') {
+            sound.playBetWon(cardObj.name);
+            HapticFeedback.winCelebration();
+            setWinModalData({ card: cardObj, winAmount: payout });
+          }
           setActivityHistory(h => [
             {
               id: `TX-${Date.now()}`,
@@ -891,8 +902,10 @@ export default function MobileApp() {
           ]);
         } else if (Object.keys(placedBetsRef.current).length > 0) {
           const totalBet = Object.values(placedBetsRef.current).reduce((a, b) => a + b, 0);
-          sound.playBetLost();
-          sound.speak(`${cardObj.name} won!`);
+          if (activeTabRef.current === 'arena') {
+            sound.playBetLost();
+            sound.speak(`${cardObj.name} won!`);
+          }
           setActivityHistory(h => [
             {
               id: `TX-${Date.now()}`,
@@ -906,14 +919,18 @@ export default function MobileApp() {
             ...h
           ]);
         } else {
-          sound.playNotification();
-          sound.speak(`${cardObj.name} won!`);
+          if (activeTabRef.current === 'arena') {
+            sound.playNotification();
+            sound.speak(`${cardObj.name} won!`);
+          }
         }
 
         setLastPlacedBets({ ...placedBetsRef.current });
         setTimeout(() => {
           setRoundStatus('BETTING');
-          sound.playBetNow();
+          if (activeTabRef.current === 'arena') {
+            sound.playBetNow();
+          }
           setPlacedBets({});
           setWinningCard(null);
           setWinModalData(null);
@@ -1008,7 +1025,7 @@ export default function MobileApp() {
     const fallbackTimer = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev > 1) {
-          if (prev <= 5) sound.playTick();
+          if (prev <= 5 && activeTabRef.current === 'arena') sound.playTick();
           return prev - 1;
         }
         return prev;
@@ -2362,9 +2379,9 @@ export default function MobileApp() {
 
   // VIEW: MAIN APPLICATION SHELL
   return (
-    <div className="min-h-[100dvh] w-full bg-[#0c0a08] text-[#fdf6e7] flex flex-col justify-between max-w-md mx-auto relative select-none pb-24">
+    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-[#0c0a08] text-[#fdf6e7] flex flex-col justify-between relative select-none pb-24 overflow-x-hidden">
       {/* ── TOP APP BAR ── */}
-      <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/25 px-2.5 xs:px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 sm:pb-3 flex items-center justify-between shadow-md gap-2">
+      <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/25 px-2.5 xs:px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 sm:pb-3 flex items-center justify-between shadow-md gap-2 w-full overflow-hidden">
         {/* Brand */}
         <div className="flex items-center gap-2 min-w-0 shrink">
           <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/40 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
@@ -2454,13 +2471,13 @@ export default function MobileApp() {
 
       {/* ── TOAST NOTIFICATION ── */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-slide-up w-[90%] max-w-sm">
-          <div className="bg-[#221810] border border-amber-500/40 text-amber-100 px-4 py-2.5 rounded-xl shadow-2xl shadow-black/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
-              <span className="font-medium text-amber-100">{toastMessage}</span>
+        <div className="fixed top-16 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="bg-[#221810] border border-amber-500/40 text-amber-100 px-4 py-2.5 rounded-xl shadow-2xl shadow-black/80 flex items-center justify-between text-xs w-full max-w-sm pointer-events-auto animate-slide-up">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b] shrink-0" />
+              <span className="font-medium text-amber-100 truncate">{toastMessage}</span>
             </div>
-            <button onClick={() => setToastMessage(null)} className="text-amber-200/60 hover:text-white">
+            <button onClick={() => setToastMessage(null)} className="text-amber-200/60 hover:text-white shrink-0 ml-2">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -2546,7 +2563,7 @@ export default function MobileApp() {
       )}
 
       {activeTab === 'arena' && (
-        <main className="p-2 sm:p-3 pb-28 space-y-3 animate-fade-in max-w-lg mx-auto">
+        <main className="p-2 sm:p-3 pb-28 space-y-3 animate-fade-in w-full max-w-md mx-auto overflow-hidden">
           {/* Top Indian Hostess Stage with Mughal Arch & Ambient Palace Glow */}
           <div className="relative rounded-3xl overflow-hidden border-2 border-amber-500/40 bg-gradient-to-b from-[#241a10] via-[#14100c] to-[#0d0a08] shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
             {/* Ambient Gold Radial Glow */}
