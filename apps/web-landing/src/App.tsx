@@ -139,14 +139,14 @@ export default function LandingApp() {
         <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-amber-300 overflow-hidden text-black font-black">
-              {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : <span>👑</span>}
+            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg border border-amber-500/30">
+              <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
             </div>
             <div>
               <span className="text-lg font-black tracking-tight text-amber-100 font-serif">
                 {brand.appName}
               </span>
-              <span className="hidden sm:block text-[9px] font-bold text-amber-200/60 uppercase tracking-widest">{brand.tagline || 'Pick a card. Win 10×.'}</span>
+              <span className="hidden sm:block text-[9px] font-bold text-amber-200/60 uppercase tracking-widest">{brand.tagline || '14 Pictures. Win 10×.'}</span>
             </div>
           </div>
 
@@ -205,6 +205,11 @@ export default function LandingApp() {
           style={{ background: 'radial-gradient(ellipse, rgba(251,191,36,0.08) 0%, transparent 70%)' }} />
 
         <div className="max-w-5xl mx-auto text-center">
+          {/* Official SURRAT ND Logo Badge */}
+          <div className="float-up flex justify-center mb-6">
+            <img src="/logo-badge.png" alt="SURRAT ND" className="h-28 sm:h-36 w-auto object-contain drop-shadow-[0_10px_30px_rgba(217,119,6,0.35)]" />
+          </div>
+
           {/* Badge */}
           <div className="float-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-xs font-bold text-amber-300 mb-6 tracking-wide font-serif">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -582,8 +587,10 @@ export default function LandingApp() {
             </button>
 
             <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto mb-4">📱</div>
-              <h3 className="text-2xl font-black text-white">Install {brand.appName} App</h3>
+              <div className="w-16 h-16 rounded-2xl overflow-hidden border border-amber-500/30 mx-auto mb-4 shadow-lg shadow-amber-500/10">
+                <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
+              </div>
+              <h3 className="text-2xl font-black text-amber-100 font-serif">Install {brand.appName} App</h3>
               <p className="text-sm text-slate-400 mt-1">
                 {appDownloadUrl ? `Install the signed Android release${appVersion ? ` v${appVersion}` : ''} (Android 7.0+).` : 'The Android download is disabled while release checks are incomplete.'}
               </p>
