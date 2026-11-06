@@ -61,7 +61,7 @@ app.get('/', (req: Request, res: Response) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apex Arcade — Backend Engine & WebSocket Cluster</title>
+  <title>SURRAT ND — Backend Engine & WebSocket Cluster</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800;900&family=Plus+Jakarta+Sans:wght@500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
   <style>
@@ -257,7 +257,7 @@ app.get('/api/v1/health', async (_req: Request, res: Response) => {
   }
   res.status(postgres ? 200 : 503).json({
     status: postgres ? 'ONLINE' : 'DEGRADED',
-    service: 'Apex Arcade API',
+    service: 'SURRAT ND API',
     version: '1.0.0',
     postgres,
     redis,

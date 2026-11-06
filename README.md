@@ -1,6 +1,6 @@
-# Apex Arcade
+# SURRAT ND
 
-A 14-picture game with a player app, a landing site, an admin screen, and a desk for checking UPI payments. The API is Express and Socket.IO. Wallets are in Postgres. Redis holds OTP codes and rate limits.
+A 14-picture live game with a player app, a landing site, an admin screen, and a desk for checking UPI payments. The API is Express and Socket.IO. Wallets are in Postgres. Redis holds sessions and rate limits.
 
 A deposit is a QR code plus a 12-digit UTR that someone on the desk approves. New wallets start at ₹0. There is no payment gateway.
 

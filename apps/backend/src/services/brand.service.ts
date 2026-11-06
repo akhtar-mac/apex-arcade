@@ -2,10 +2,10 @@ import { getPrisma } from '../db.js';
 
 const DEFAULT_BRAND = {
   id: 'brand',
-  appName: 'Apex Arcade',
-  shortName: 'APEX',
+  appName: 'SURRAT ND',
+  shortName: 'SURRAT ND',
   tagline: 'Pick a card. Win 10×.',
-  logoUrl: ''
+  logoUrl: '/logo.png'
 };
 
 function clean(value: unknown, max: number) {

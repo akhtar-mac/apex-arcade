@@ -6,8 +6,8 @@ if (serverUrl && !serverUrl.startsWith('https://') && !/^http:\/\/(localhost|127
 }
 
 const config: CapacitorConfig = {
-  appId: 'com.apexarcade.gaming',
-  appName: 'Apex Arcade',
+  appId: 'com.surratnd.gaming',
+  appName: 'SURRAT ND',
   webDir: 'dist',
   server: serverUrl
     ? { url: serverUrl, cleartext: /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(serverUrl), androidScheme: 'https' }

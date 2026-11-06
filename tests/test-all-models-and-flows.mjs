@@ -155,9 +155,9 @@ async function runAllTests() {
     await api('/api/v1/admin/brand', {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify({ appName: 'Apex Arcade', shortName: 'Apex', tagline: '14-Picture Indian Wheel of Fortune' })
+      body: JSON.stringify({ appName: 'SURRAT ND', shortName: 'SURRAT ND', tagline: '14 Pictures. Win 10×.' })
     });
-    pass('BrandSetting restored to default', 'Apex Arcade');
+    pass('BrandSetting restored to default', 'SURRAT ND');
   } catch (err) {
     fail('Model: BrandSetting', err);
   }

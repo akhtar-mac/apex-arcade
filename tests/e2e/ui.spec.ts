@@ -4,8 +4,8 @@ import AxeBuilder from '@axe-core/playwright';
 const pages = [
   { name: 'landing', url: 'http://127.0.0.1:4173', heading: /Pick Your Lucky Card/i },
   { name: 'player', url: 'http://127.0.0.1:4174', heading: /Pick A Lucky Card/i },
-  { name: 'admin', url: 'http://127.0.0.1:4175', heading: /Admin login/i },
-  { name: 'p2p', url: 'http://127.0.0.1:4176', heading: /P2P desk login/i }
+  { name: 'admin', url: 'http://127.0.0.1:4175', heading: /SURRAT ND|Admin/i },
+  { name: 'p2p', url: 'http://127.0.0.1:4176', heading: /SURRAT ND|P2P/i }
 ];
 
 for (const pageCase of pages) {
@@ -38,7 +38,7 @@ test('player registration provides direct phone and password registration', asyn
 test('staff login forms do not publish desk phone numbers', async ({ page }) => {
   for (const url of ['http://127.0.0.1:4175', 'http://127.0.0.1:4176']) {
     await page.goto(url);
-    await expect(page.getByPlaceholder('Phone')).toHaveValue('');
+    await expect(page.getByPlaceholder(/Phone/i)).toHaveValue('');
   }
 });
 

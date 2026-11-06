@@ -101,7 +101,7 @@ export interface UpiAccountItem {
 
 export default function AdminApp() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', logoUrl: '' });
+  const [brand, setBrand] = useState({ appName: 'SURRAT ND', shortName: 'SURRAT ND', logoUrl: '/logo-emblem.png' });
 
   // Live Game Round State
   const [currentRound, setCurrentRound] = useState(0);
@@ -560,9 +560,12 @@ export default function AdminApp() {
     return (
       <div className="min-h-screen bg-[#0c0a08] text-white flex items-center justify-center px-6">
         <form onSubmit={submitStaffLogin} className="w-full max-w-sm bg-[#140f0a] border border-amber-500/20 rounded-2xl p-6 space-y-4 shadow-2xl">
-          <h1 className="text-lg font-black text-amber-400">Admin login</h1>
-          <p className="text-xs text-[#94A3B8]">The desk is closed until an admin signs in.</p>
-          <input value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="Phone" className="w-full bg-[#0c0a08] border border-amber-500/20 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none" />
+          <div className="text-center mb-2">
+            <img src="/logo-badge.png" alt="SURRAT ND" className="h-16 mx-auto mb-2 drop-shadow-md" />
+            <h1 className="text-lg font-black text-amber-400">SURRAT ND — Admin Portal</h1>
+            <p className="text-xs text-[#94A3B8]">The desk is closed until an admin signs in.</p>
+          </div>
+          <input value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="Admin Phone Number" className="w-full bg-[#0c0a08] border border-amber-500/20 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none" />
           <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-[#0c0a08] border border-amber-500/20 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none" />
           {loginError && <p className="text-xs text-red-400">{loginError}</p>}
           <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black rounded-lg py-2.5 shadow-md shadow-amber-500/20 hover:brightness-110 transition-all">Sign in</button>
@@ -576,12 +579,12 @@ export default function AdminApp() {
       {/* ── TOP HEADER ── */}
       <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/20 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#1c150e] border border-amber-500/30 flex items-center justify-center font-black text-amber-400 text-sm overflow-hidden">
-            {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : brand.shortName.slice(0, 2)}
+          <div className="w-8 h-8 rounded-lg bg-[#1c150e] border border-amber-500/30 flex items-center justify-center overflow-hidden">
+            <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-black text-sm tracking-tight text-white">{brand.appName}</span>
+              <span className="font-black text-sm tracking-tight text-white font-serif">SURRAT ND</span>
               <span className="text-[10px] font-mono-numbers px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 DESK
               </span>

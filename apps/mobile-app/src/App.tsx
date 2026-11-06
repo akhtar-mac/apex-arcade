@@ -221,7 +221,7 @@ export default function MobileApp() {
   const [selectedRoom, setSelectedRoom] = useState<RoomTier>(ROOMS[0]);
   const [eventRooms, setEventRooms] = useState<RoomTier[]>([]);
   const [eventsReady, setEventsReady] = useState(false);
-  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: '', logoUrl: '' });
+  const [brand, setBrand] = useState({ appName: 'SURRAT ND', shortName: 'SURRAT ND', tagline: '14 Pictures. Win 10×.', logoUrl: '/logo-emblem.png' });
   const [roundNumber, setRoundNumber] = useState<number>(0);
   const roundIdRef = useRef('');
   const [roundStatus, setRoundStatus] = useState<RoundStatus>('BETTING');
@@ -1831,6 +1831,14 @@ export default function MobileApp() {
     return (
       <div className="min-h-[100dvh] w-full overflow-y-auto bg-[#0c0a08] text-[#fdf6e7] flex flex-col justify-between px-4 sm:px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] max-w-md mx-auto">
         <div className="pt-1 sm:pt-4">
+          {/* SURRAT ND Golden Emblem & Brand Banner */}
+          <div className="flex flex-col items-center justify-center py-2 mb-3 text-center">
+            <img src="/logo-badge.png" alt="SURRAT ND" className="h-20 w-auto object-contain drop-shadow-[0_4px_20px_rgba(217,119,6,0.35)] mb-1" />
+            <span className="text-[10px] font-black tracking-widest text-amber-200/80 uppercase font-mono-numbers">
+              👑 OFFICIAL 14-PICTURE LIVE ARENA
+            </span>
+          </div>
+
           {/* Royal Hostess Header Card */}
           <div className="parchment-texture parchment-border p-3.5 rounded-2xl relative overflow-hidden shadow-xl mb-4 flex items-center gap-3">
             <div className="w-14 h-16 rounded-xl overflow-hidden border-2 border-[#8c6239] shrink-0 shadow-md">
@@ -1940,32 +1948,6 @@ export default function MobileApp() {
                   <span>Sign In</span>
                 )}
               </button>
-
-              {demoLoginEnabled && (
-                <div className="pt-2 space-y-2">
-                  <div className="relative flex py-1 items-center">
-                    <div className="flex-grow border-t border-white/[0.08]" />
-                    <span className="flex-shrink mx-3 text-[10px] font-bold text-amber-400 uppercase tracking-widest font-mono-numbers">
-                      ⚡ INSTANT TEST PLAY
-                    </span>
-                    <div className="flex-grow border-t border-white/[0.08]" />
-                  </div>
-
-                  <button
-                    type="button"
-                    id="demo-login-btn"
-                    onClick={handleShowcaseLoginClick}
-                    disabled={isSubmittingAuth}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable shadow-lg shadow-amber-500/25 hover:brightness-110 transition-all flex items-center justify-center gap-2 border-2 border-amber-300"
-                  >
-                    <Zap className="w-4 h-4 fill-black text-black shrink-0" />
-                    <span>Demo Login with ₹1,00,000</span>
-                  </button>
-                  <p className="text-[11px] text-center text-amber-200/70 font-medium leading-tight">
-                    Instant access with ₹1,00,000 demo credits to play all picture rooms
-                  </p>
-                </div>
-              )}
             </form>
           ) : (
             /* ── NEW PLAYER REGISTRATION ONBOARDING ── */
@@ -2157,12 +2139,12 @@ export default function MobileApp() {
       <header className="sticky top-0 z-30 bg-[#140f0a]/95 backdrop-blur-md border-b border-amber-500/25 px-2.5 xs:px-3.5 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 sm:pb-3 flex items-center justify-between shadow-md gap-2">
         {/* Brand */}
         <div className="flex items-center gap-2 min-w-0 shrink">
-          <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/40 flex items-center justify-center font-black text-amber-400 text-sm overflow-hidden shadow-inner shrink-0">
-            {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : brand.shortName.slice(0, 2)}
+          <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/40 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
+            <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-black text-xs sm:text-sm tracking-tight text-amber-100 font-serif truncate">{brand.shortName}</span>
+              <span className="font-black text-xs sm:text-sm tracking-tight text-amber-100 font-serif truncate">SURRAT ND</span>
               <span className="text-[9px] font-mono-numbers px-1 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold shrink-0">
                 10X
               </span>
@@ -2835,8 +2817,8 @@ export default function MobileApp() {
           {/* User Card */}
           <div className="p-5 rounded-2xl bg-[#18130e] border border-amber-500/25 flex items-center justify-between shadow-md">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-[#221810] border border-amber-500/35 flex items-center justify-center text-amber-400 font-black text-lg font-serif relative shadow-inner">
-                AP
+              <div className="w-12 h-12 rounded-xl bg-[#221810] border border-amber-500/35 overflow-hidden flex items-center justify-center relative shadow-inner">
+                <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
                 {isVerifiedDepositor && (
                   <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black flex items-center justify-center text-[10px] font-black shadow">
                     ✓

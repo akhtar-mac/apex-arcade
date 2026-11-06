@@ -48,14 +48,14 @@ export default function LandingApp() {
   const [downloadModal, setDownloadModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [legalPage, setLegalPage] = useState<'terms' | 'privacy' | 'responsible' | null>(null);
-  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', tagline: 'Pick a card. Win 10×.', logoUrl: '' });
+  const [brand, setBrand] = useState({ appName: 'SURRAT ND', shortName: 'SURRAT ND', tagline: '14 Pictures. Win 10×.', logoUrl: '/logo.png' });
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
   const apiBase = (import.meta as any).env?.VITE_API_URL || (isLocalHost ? `http://${window.location.hostname}:4000` : 'https://apex-arcade-api.onrender.com');
   const playerUrl = (import.meta as any).env?.VITE_PLAYER_URL || (isLocalHost ? `http://${window.location.hostname}:5174` : 'https://apex-mobile-app.onrender.com');
   const appDownloadUrl = (import.meta as any).env?.VITE_APP_DOWNLOAD_URL || '';
   const appVersion = (import.meta as any).env?.VITE_APP_VERSION || '';
-  const appDownloadName = appVersion ? `Apex-Arcade-${appVersion}.apk` : 'Apex-Arcade-App.apk';
+  const appDownloadName = appVersion ? `SURRAT-ND-${appVersion}.apk` : 'SURRAT-ND-App.apk';
 
   useEffect(() => {
     fetch(`${apiBase}/api/v1/brand`).then(r => r.json()).then(json => {
@@ -524,10 +524,10 @@ export default function LandingApp() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0df59d] to-[#00e5ff] flex items-center justify-center shadow-md">
-                  <span className="text-base">🎰</span>
+                <div className="w-8 h-8 rounded-xl overflow-hidden shadow-md border border-amber-500/30">
+                  <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
                 </div>
-                <span className="font-black text-white text-lg font-['Outfit']">APEX<span className="text-[#0df59d]">ARCADE</span></span>
+                <span className="font-black text-amber-200 text-lg font-['Outfit'] font-serif tracking-wider">SURRAT <span className="text-amber-400">ND</span></span>
               </div>
               <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
                 A restricted-stage 14-picture arcade backed by PostgreSQL and Redis. Transactional features remain disabled until release authorization.

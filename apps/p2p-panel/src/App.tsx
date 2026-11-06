@@ -85,7 +85,7 @@ function formatAge(sec: number): string {
 
 export default function P2PApp() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('deposits');
-  const [brand, setBrand] = useState({ appName: 'Apex Arcade', shortName: 'APEX', logoUrl: '' });
+  const [brand, setBrand] = useState({ appName: 'SURRAT ND', shortName: 'SURRAT ND', logoUrl: '/logo-emblem.png' });
   const [copied, setCopied] = useState('');
 
   const backendHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -374,13 +374,16 @@ export default function P2PApp() {
   if (!staffToken) {
     return (
       <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex items-center justify-center px-6">
-        <form onSubmit={submitStaffLogin} className="w-full max-w-sm bg-[#111827] border border-white/10 rounded-2xl p-6 space-y-4">
-          <h1 className="text-lg font-black">P2P desk login</h1>
-          <p className="text-xs text-slate-400">An agent or admin password is required before any UTR can be approved.</p>
-          <input value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="Phone" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
-          <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm" />
+        <form onSubmit={submitStaffLogin} className="w-full max-w-sm bg-[#111827] border border-amber-500/25 rounded-2xl p-6 space-y-4 shadow-2xl">
+          <div className="text-center mb-2">
+            <img src="/logo-badge.png" alt="SURRAT ND" className="h-16 mx-auto mb-2 drop-shadow-md" />
+            <h1 className="text-lg font-black text-amber-400">SURRAT ND — P2P Desk</h1>
+            <p className="text-xs text-slate-400">An agent or admin password is required before any UTR can be approved.</p>
+          </div>
+          <input value={loginPhone} onChange={e => setLoginPhone(e.target.value)} placeholder="Agent Phone" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none" />
+          <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-400 focus:outline-none" />
           {loginError && <p className="text-xs text-red-400">{loginError}</p>}
-          <button type="submit" className="w-full bg-emerald-400 text-black font-bold rounded-lg py-2">Sign in</button>
+          <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black rounded-lg py-2.5 shadow-md hover:brightness-110 transition-all">Sign in</button>
         </form>
       </div>
     );
@@ -394,14 +397,14 @@ export default function P2PApp() {
 
           {/* Brand & Agent ID */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0df59d] to-[#00e5ff] flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0 overflow-hidden">
-              {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-cover" /> : '💳'}
+            <div className="w-10 h-10 rounded-xl bg-[#1c150e] border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10 shrink-0 overflow-hidden">
+              <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-lg text-white font-['Outfit']">{brand.shortName}<span className="text-[#0df59d]">P2P</span></span>
-                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-[#0df59d] border border-emerald-500/25 text-[10px] font-black tracking-wide">
-                  PAYMENT CONSOLE
+                <span className="font-black text-lg text-white font-serif tracking-wide">SURRAT <span className="text-amber-400">ND</span></span>
+                <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/25 text-[10px] font-black tracking-wide">
+                  P2P DESK
                 </span>
               </div>
               <span className="text-xs text-slate-400 font-medium">{agentStats.name} • {agentStats.agentId} • Shift from {agentStats.shifStartTime}</span>

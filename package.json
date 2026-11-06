@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "Restricted-stage 14-picture arcade game with a manual P2P UPI desk",
+  "description": "SURRAT ND — 14-picture arcade game with a manual P2P UPI desk",
   "workspaces": [
     "apps/*",
     "packages/*"
