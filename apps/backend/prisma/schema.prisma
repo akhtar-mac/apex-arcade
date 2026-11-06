@@ -39,6 +39,20 @@ enum RoundStatus {
   COMPLETED
 }
 
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 model User {
   id           String        @id @default(uuid())
   phoneNumber  String        @unique
@@ -63,6 +77,7 @@ model User {
   bets         Bet[]
   transactions Transaction[]
   tdsRecords   TdsRecord[]
+  supportTickets SupportTicket[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -236,4 +251,35 @@ model TdsRecord {
   netDispatched   Decimal  @db.Decimal(12, 2) // Gross - TDS
   financialYear   String   // e.g. "2026-2027"
   createdAt       DateTime @default(now())
+}
+
+model SupportTicket {
+  id         String          @id @default(uuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  subject    String          @default("Customer Support Query")
+  category   String          @default("PAYMENT") // PAYMENT, GAME, ACCOUNT, KYC, OTHER
+  status     TicketStatus    @default(OPEN)
+  priority   TicketPriority  @default(NORMAL)
+  assignedTo String?
+  messages   SupportMessage[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model SupportMessage {
+  id          String        @id @default(uuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId    String
+  senderRole  Role          @default(USER)
+  senderName  String
+  message     String        @db.Text
+  attachments String?
+  createdAt   DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
 }

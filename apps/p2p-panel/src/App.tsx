@@ -21,6 +21,10 @@ import {
   Timer,
   QrCode,
   Plus,
+  Headphones,
+  MessageSquare,
+  Send,
+  CheckCheck,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -74,7 +78,33 @@ interface DisputeItem {
   ageSeconds: number;
 }
 
-type ActiveTab = 'deposits' | 'withdrawals' | 'disputes' | 'upi-rotator' | 'logs';
+interface SupportTicketItem {
+  id: string;
+  userId: string;
+  subject: string;
+  category: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  priority: string;
+  user: {
+    phoneNumber: string;
+    fullName: string | null;
+    wallet?: { balance: any; locked: any; unwagered: any };
+    transactions?: Array<{ id: string; type: string; status: string; amount: any; utrNumber?: string; createdAt: string }>;
+  };
+  messages: Array<{
+    id: string;
+    senderId: string;
+    senderRole: 'USER' | 'AGENT' | 'ADMIN';
+    senderName: string;
+    message: string;
+    attachments?: string | null;
+    createdAt: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type ActiveTab = 'deposits' | 'withdrawals' | 'disputes' | 'support' | 'upi-rotator' | 'logs';
 
 interface UpiAccountItem {
   id: string;
@@ -126,6 +156,11 @@ export default function P2PApp() {
   const [selectedDispute, setSelectedDispute] = useState<DisputeItem | null>(null);
   const [isResolvingDispute, setIsResolvingDispute] = useState(false);
   const [disputeRejectReason, setDisputeRejectReason] = useState('');
+  const [supportTickets, setSupportTickets] = useState<SupportTicketItem[]>([]);
+  const [selectedSupportTicket, setSelectedSupportTicket] = useState<SupportTicketItem | null>(null);
+  const [supportReplyText, setSupportReplyText] = useState('');
+  const [isSendingSupportReply, setIsSendingSupportReply] = useState(false);
+  const [supportFilter, setSupportFilter] = useState<'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED'>('ALL');
   const [payoutUtr, setPayoutUtr] = useState('');
   const [upiAccounts, setUpiAccounts] = useState<UpiAccountItem[]>([]);
   const [newUpiId, setNewUpiId] = useState('');
@@ -154,10 +189,11 @@ export default function P2PApp() {
   const fetchLiveQueues = useCallback(async () => {
     if (!staffToken) return;
     try {
-      const [depRes, wdRes, disRes] = await Promise.all([
+      const [depRes, wdRes, disRes, supRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/admin/p2p-queue`).then(r => r.json()).catch(() => null),
         fetch(`${API_BASE}/api/v1/admin/withdrawals`).then(r => r.json()).catch(() => null),
         fetch(`${API_BASE}/api/v1/admin/disputes`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/api/v1/support/admin/tickets`).then(r => r.json()).catch(() => null),
       ]);
 
       if (depRes?.success && Array.isArray(depRes.data)) {
@@ -212,6 +248,14 @@ export default function P2PApp() {
         }));
         setDisputes(liveDis);
         setSelectedDispute(current => liveDis.find(item => item.id === current?.id) || liveDis[0] || null);
+      }
+
+      if (supRes?.success && Array.isArray(supRes.data)) {
+        setSupportTickets(supRes.data);
+        setSelectedSupportTicket(current => {
+          if (!current) return supRes.data[0] || null;
+          return supRes.data.find((t: any) => t.id === current.id) || current;
+        });
       }
     } catch {}
   }, [API_BASE, staffToken]);
@@ -325,6 +369,59 @@ export default function P2PApp() {
     } finally {
       setIsResolvingDispute(false);
     }
+  };
+
+  // ── Help Desk Support Handlers ──
+  const handleSelectSupportTicket = async (ticket: SupportTicketItem) => {
+    setSelectedSupportTicket(ticket);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/support/admin/tickets/${ticket.id}`);
+      const json = await res.json().catch(() => null);
+      if (json?.success && json.data) {
+        setSelectedSupportTicket(json.data);
+      }
+    } catch {}
+  };
+
+  const handleSendSupportReply = async () => {
+    if (!selectedSupportTicket || !supportReplyText.trim()) return;
+    setIsSendingSupportReply(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/support/admin/tickets/${selectedSupportTicket.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: supportReplyText.trim() })
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.success) {
+        setSupportReplyText('');
+        handleSelectSupportTicket(selectedSupportTicket);
+        fetchLiveQueues();
+      } else {
+        window.alert(json?.error || 'Failed to send reply');
+      }
+    } catch {
+      window.alert('Network error sending reply');
+    } finally {
+      setIsSendingSupportReply(false);
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED') => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/support/admin/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.success) {
+        fetchLiveQueues();
+        if (selectedSupportTicket?.id === ticketId) {
+          setSelectedSupportTicket(prev => prev ? { ...prev, status } : null);
+        }
+      }
+    } catch {}
   };
 
   // ── Approve deposit ──
@@ -507,11 +604,12 @@ export default function P2PApp() {
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5">
 
         {/* Queue Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: 'Pending Deposits', count: deposits.length, color: '#0df59d', icon: <ArrowDownToLine className="w-4 h-4" />, urgent: deposits.some(d => d.ageSeconds > 300) },
             { label: 'Pending Payouts', count: withdrawals.length, color: '#00e5ff', icon: <ArrowUpFromLine className="w-4 h-4" />, urgent: withdrawals.some(w => w.ageSeconds > 300) },
             { label: 'Open Disputes', count: disputes.length, color: '#f59e0b', icon: <AlertTriangle className="w-4 h-4" />, urgent: disputes.length > 0 },
+            { label: 'Help Desk Open', count: supportTickets.filter(t => t.status === 'OPEN').length, color: '#38bdf8', icon: <Headphones className="w-4 h-4" />, urgent: supportTickets.some(t => t.status === 'OPEN') },
             { label: 'Processed Today', count: logs.length, color: '#a78bfa', icon: <CheckCircle className="w-4 h-4" />, urgent: false },
           ].map(c => (
             <div key={c.label} className={`p-4 rounded-2xl bg-[#111826] border transition ${c.urgent ? 'border-amber-500/40 urgent-timer' : 'border-white/[0.06]'}`}>
@@ -531,6 +629,7 @@ export default function P2PApp() {
             { id: 'deposits',    icon: <ArrowDownToLine className="w-4 h-4" />, label: `Incoming Deposits (${deposits.length})` },
             { id: 'withdrawals', icon: <ArrowUpFromLine className="w-4 h-4" />,  label: `Outgoing Payouts (${withdrawals.length})` },
             { id: 'disputes',    icon: <AlertTriangle className="w-4 h-4" />,   label: `Disputes & Appeals (${disputes.length})` },
+            { id: 'support',     icon: <Headphones className="w-4 h-4" />,      label: `Help Desk (${supportTickets.filter(t => t.status === 'OPEN').length})` },
             { id: 'upi-rotator', icon: <QrCode className="w-4 h-4" />,          label: 'QR Limits & Rotation' },
             { id: 'logs',        icon: <History className="w-4 h-4" />,          label: 'Shift Log' },
           ].map(tab => (
@@ -985,6 +1084,201 @@ export default function P2PApp() {
                 <div className="py-24 text-center text-slate-600 rounded-3xl bg-[#111826] border border-dashed border-white/[0.06]">
                   <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30 text-amber-400" />
                   <p className="font-semibold text-sm">Select an open dispute to arbitrate</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'support' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
+            {/* Tickets Queue List */}
+            <div className="lg:col-span-5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold mb-2 px-1">
+                <span>CUSTOMER SUPPORT INQUIRIES ({supportTickets.length})</span>
+                <span className="text-sky-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 live-dot" /> Live Desk
+                </span>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-[#111826] border border-white/[0.06] mb-2 text-xs">
+                {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setSupportFilter(f)}
+                    className={`py-1 rounded-lg font-bold text-[10px] transition ${
+                      supportFilter === f ? 'bg-sky-500 text-black font-black' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
+              {supportTickets.filter(t => supportFilter === 'ALL' || t.status === supportFilter).length === 0 ? (
+                <div className="py-16 text-center rounded-2xl bg-[#111826] border border-white/[0.06]">
+                  <CheckCircle className="w-12 h-12 text-sky-400 mx-auto mb-3 opacity-60" />
+                  <h4 className="font-black text-white text-sm">All Inquiries Handled</h4>
+                  <p className="text-xs text-slate-500 mt-1">No open customer support tickets under this filter.</p>
+                </div>
+              ) : (
+                supportTickets
+                  .filter(t => supportFilter === 'ALL' || t.status === supportFilter)
+                  .map(t => (
+                    <div
+                      key={t.id}
+                      onClick={() => handleSelectSupportTicket(t)}
+                      className={`queue-item p-4 rounded-2xl border cursor-pointer transition ${
+                        selectedSupportTicket?.id === t.id
+                          ? 'border-sky-400/50 bg-[#0f172a]'
+                          : 'bg-[#111826] border-white/[0.06] hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-white">{t.user?.fullName || 'VIP Player'}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30">
+                            {t.category}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                            t.status === 'OPEN'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : t.status === 'IN_PROGRESS'
+                              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-semibold text-slate-300 truncate">{t.subject}</p>
+                      {t.messages?.[0] && (
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">"{t.messages[0].message}"</p>
+                      )}
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 pt-2 border-t border-white/[0.04]">
+                        <span className="font-mono text-slate-400">{t.user?.phoneNumber}</span>
+                        <span>{new Date(t.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            {/* Conversation Thread & Customer Context Console */}
+            <div className="lg:col-span-7">
+              {selectedSupportTicket ? (
+                <div className="p-5 rounded-3xl bg-[#111826] border border-sky-500/20 space-y-4 shadow-2xl flex flex-col h-[700px]">
+                  {/* Top Bar: Customer Context */}
+                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-black text-white">{selectedSupportTicket.user?.fullName || 'Player'}</h3>
+                        <span className="text-xs font-mono text-slate-400">{selectedSupportTicket.user?.phoneNumber}</span>
+                      </div>
+                      <span className="text-[10px] text-sky-400 font-mono">Case #{selectedSupportTicket.id.slice(-8)} • {selectedSupportTicket.category}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedSupportTicket.status !== 'RESOLVED' ? (
+                        <button
+                          onClick={() => handleUpdateTicketStatus(selectedSupportTicket.id, 'RESOLVED')}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          <span>Mark Resolved</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleUpdateTicketStatus(selectedSupportTicket.id, 'OPEN')}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition"
+                        >
+                          Re-open
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Customer Quick Overview Card */}
+                  {selectedSupportTicket.user?.wallet && (
+                    <div className="grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-black/40 border border-white/[0.06] text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Wallet Balance</span>
+                        <span className="font-black text-emerald-400 font-mono-numbers">₹{Number(selectedSupportTicket.user.wallet.balance).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Locked Payouts</span>
+                        <span className="font-bold text-amber-300 font-mono-numbers">₹{Number(selectedSupportTicket.user.wallet.locked).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Unwagered (1.0x)</span>
+                        <span className="font-bold text-slate-300 font-mono-numbers">₹{Number(selectedSupportTicket.user.wallet.unwagered).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Messages Scroll Area */}
+                  <div className="flex-1 overflow-y-auto space-y-3 p-3 rounded-2xl bg-[#0a0f1d] border border-white/[0.06] text-xs">
+                    {(selectedSupportTicket.messages || []).map(m => (
+                      <div
+                        key={m.id}
+                        className={`flex flex-col ${m.senderRole === 'USER' ? 'items-start' : 'items-end'}`}
+                      >
+                        <span className="text-[10px] text-slate-500 mb-0.5 px-1 font-semibold">
+                          {m.senderRole === 'USER' ? (selectedSupportTicket.user?.fullName || 'Player') : 'Help Desk Agent'}
+                        </span>
+                        <div
+                          className={`max-w-[85%] rounded-2xl p-3 leading-relaxed ${
+                            m.senderRole === 'USER'
+                              ? 'bg-[#1e293b] text-slate-200 border border-white/10 rounded-tl-none'
+                              : 'bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium rounded-tr-none shadow-md shadow-sky-500/20'
+                          }`}
+                        >
+                          {m.message}
+                          {m.attachments && (
+                            <img src={m.attachments} alt="Proof" className="mt-2 max-h-40 rounded-xl object-contain border border-white/20" />
+                          )}
+                        </div>
+                        <span className="text-[9px] text-slate-500 mt-1 px-1 font-mono">
+                          {new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Reply Input Box */}
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      handleSendSupportReply();
+                    }}
+                    className="flex items-center gap-2 pt-1"
+                  >
+                    <input
+                      type="text"
+                      value={supportReplyText}
+                      onChange={e => setSupportReplyText(e.target.value)}
+                      placeholder="Type response to player (press Enter to send)..."
+                      className="flex-1 px-4 py-3 rounded-2xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSendingSupportReply || !supportReplyText.trim()}
+                      className="px-5 py-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-400 hover:to-blue-400 text-black font-black text-xs transition shadow-lg shadow-sky-500/20 disabled:opacity-40 flex items-center gap-1.5"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isSendingSupportReply ? 'Sending...' : 'Reply'}</span>
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="py-32 text-center text-slate-600 rounded-3xl bg-[#111826] border border-dashed border-white/[0.06]">
+                  <Headphones className="w-12 h-12 mx-auto mb-3 opacity-30 text-sky-400" />
+                  <p className="font-semibold text-sm">Select an inquiry to communicate with the customer</p>
                 </div>
               )}
             </div>

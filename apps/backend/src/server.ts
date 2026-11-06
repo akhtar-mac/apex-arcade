@@ -8,6 +8,7 @@ import { authRouter } from './routes/auth.routes.js';
 import { paymentRouter } from './routes/payment.routes.js';
 import { gameRouter } from './routes/game.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
+import { supportRouter } from './routes/support.routes.js';
 import { setupSocketServer } from './socket.js';
 import { GameEngineService } from './services/game-engine.service.js';
 import { dbReady } from './db.js';
@@ -277,6 +278,7 @@ app.get('/api/v1/brand', async (_req, res) => {
 
 app.use('/api/v1/game', gameRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/support', supportRouter);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

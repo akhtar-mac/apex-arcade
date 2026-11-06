@@ -277,8 +277,20 @@ export default function MobileApp() {
   const [breakDays, setBreakDays] = useState<number | null>(null);
   const [isProcessingWithdraw, setIsProcessingWithdraw] = useState(false);
 
+  // Full-Screen P2P Payment Confirmed Celebration Modal
+  const [paymentConfirmedModal, setPaymentConfirmedModal] = useState<{
+    isOpen: boolean;
+    amount: number;
+    bonus: number;
+    newBalance: number;
+    txId?: string;
+    utrNumber?: string;
+    confirmedAt?: string;
+  } | null>(null);
+
   // 24/7 Live Customer Support & Help Center State
   const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const [activeTicketId, setActiveTicketId] = useState<string>('');
   const [helpRulesModalOpen, setHelpRulesModalOpen] = useState(false);
   const [responsibleGamingOpen, setResponsibleGamingOpen] = useState(false);
   const [activeHelpTab, setActiveHelpTab] = useState<'rules' | 'payouts' | 'fairness' | 'faq'>('rules');
@@ -288,7 +300,7 @@ export default function MobileApp() {
     {
       id: 'msg-1',
       sender: 'agent',
-      text: 'Deposits: pay the published QR, then enter the 12-digit UTR. The wallet changes only after the desk matches it. Withdrawals stay pending until an agent sends the money and types that UTR.',
+      text: 'Welcome to SURRAT ND Help Desk! How can we assist you today? You can ask about deposits, withdrawals, rules, or paste your 12-digit bank UTR.',
       time: 'Just now'
     }
   ]);
@@ -942,6 +954,17 @@ export default function MobileApp() {
         setPaymentScreenshot(null);
         const creditStr = data.delta ? `+₹${Number(data.delta).toLocaleString('en-IN')}` : '';
         showToast(`🎉 Wallet Credited ${creditStr}! Balance: ₹${Number(newBal).toLocaleString('en-IN')}`);
+
+        if (typeof data.delta === 'number' && data.delta > 0 && String(data.reason || '').includes('P2P')) {
+          setPaymentConfirmedModal({
+            isOpen: true,
+            amount: Number(data.delta),
+            bonus: 0,
+            newBalance: Number(newBal),
+            utrNumber: submittedUtrRef || utrInput || undefined,
+            confirmedAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+          });
+        }
       }
       if (typeof data.locked === 'number') {
         setLockedBalance(data.locked);
@@ -950,12 +973,35 @@ export default function MobileApp() {
 
     socket.on('transaction:updated', (data: any) => {
       refreshWallet(true);
-      if (data?.status === 'SUCCESS') {
+      if (data?.status === 'SUCCESS' && data?.type === 'DEPOSIT') {
         sound.playCoin();
-        showToast(`🎉 Transaction Verified! Wallet Credited ₹${data.amount}`);
+        setPaymentConfirmedModal({
+          isOpen: true,
+          amount: Number(data.amount) || 0,
+          bonus: Number(data.bonus) || 0,
+          newBalance: Number(data.newBalance) || 0,
+          txId: data.transactionId,
+          utrNumber: submittedUtrRef || utrInput || undefined,
+          confirmedAt: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+        });
+        showToast(`🎉 Payment Confirmed! ₹${data.amount} credited to your wallet.`);
       } else if (data?.status === 'REJECTED') {
         showToast(`⚠️ Deposit was rejected: ${data.reason || 'Invalid UTR'}`);
       }
+    });
+
+    socket.on('support:message', (data: any) => {
+      sound.playNotification();
+      setSupportMessages(prev => [
+        ...prev,
+        {
+          id: data.messageId || `agt-${Date.now()}`,
+          sender: 'agent',
+          text: data.message,
+          time: new Date(data.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+        }
+      ]);
+      showToast(`💬 Help Desk (${data.senderName || 'Agent'}): ${data.message.slice(0, 45)}...`);
     });
 
     // Local countdown fallback in case socket reconnects
@@ -1340,7 +1386,7 @@ export default function MobileApp() {
   });
 
   // 24/7 CUSTOMER SUPPORT HANDLER
-  const handleSendSupportMessage = (textToSend?: string) => {
+  const handleSendSupportMessage = async (textToSend?: string) => {
     const text = textToSend || supportInput.trim();
     if (!text) return;
 
@@ -1355,27 +1401,71 @@ export default function MobileApp() {
     if (!textToSend) setSupportInput('');
     setIsAgentTyping(true);
 
-    setTimeout(() => {
-      let reply = 'This desk does not auto-pay. Pay the published QR, submit the 12-digit UTR, and wait for an agent to match it. Withdrawals stay pending until the agent types the UTR of the money they sent.';
-      const lower = text.toLowerCase();
-      if (lower.includes('rule') || lower.includes('10x') || lower.includes('how to play') || lower.includes('card')) {
-        reply = 'Pick one of 14 cards. The winning card is sealed when the round starts. A winning stake pays 10×. Bets lock in the last 10 seconds. Rooms last 120, 180, or 240 seconds.';
-      } else if (lower.includes('tds') || lower.includes('tax')) {
-        reply = 'A withdrawal of ₹10,000 or more needs your PAN and legal name before an agent can pay it.';
-      }
-
-      setSupportMessages(prev => [
-        ...prev,
-        {
-          id: `agt-${Date.now()}`,
-          sender: 'agent' as const,
-          text: reply,
-          time: 'Just now'
+    try {
+      const headers = {
+        'Authorization': `Bearer ${memoryAccessToken}`,
+        'Content-Type': 'application/json'
+      };
+      if (activeTicketId) {
+        await fetch(`${API_BASE}/api/v1/support/tickets/${activeTicketId}/messages`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message: text })
+        });
+      } else {
+        const res = await fetch(`${API_BASE}/api/v1/support/tickets`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            subject: text.slice(0, 60),
+            category: text.toLowerCase().includes('utr') || text.toLowerCase().includes('deposit') ? 'PAYMENT' : 'GAME',
+            message: text
+          })
+        });
+        const json = await res.json().catch(() => null);
+        if (json?.success && json.data?.id) {
+          setActiveTicketId(json.data.id);
         }
-      ]);
+      }
+    } catch {}
+
+    setTimeout(() => {
       setIsAgentTyping(false);
-    }, 1100);
+    }, 1000);
   };
+
+  // Sync Support Tickets on Modal Open
+  useEffect(() => {
+    if (!supportModalOpen || !isLoggedIn || !memoryAccessToken) return;
+    fetch(`${API_BASE}/api/v1/support/tickets`, {
+      headers: { 'Authorization': `Bearer ${memoryAccessToken}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && Array.isArray(d.data) && d.data.length > 0) {
+          const first = d.data[0];
+          setActiveTicketId(first.id);
+          fetch(`${API_BASE}/api/v1/support/tickets/${first.id}`, {
+            headers: { 'Authorization': `Bearer ${memoryAccessToken}` }
+          })
+            .then(r2 => r2.json())
+            .then(d2 => {
+              if (d2?.success && Array.isArray(d2.data?.messages) && d2.data.messages.length > 0) {
+                setSupportMessages(
+                  d2.data.messages.map((m: any) => ({
+                    id: m.id,
+                    sender: m.senderRole === 'USER' ? 'user' : 'agent',
+                    text: m.message,
+                    time: new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                  }))
+                );
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [supportModalOpen, isLoggedIn, API_BASE]);
 
   // FORGOT / RESET PASSWORD MODAL
   const renderForgotPasswordModal = () => {
@@ -3710,6 +3800,103 @@ export default function MobileApp() {
             >
               Claim & Continue
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── FULL SCREEN P2P PAYMENT CONFIRMED CELEBRATION POPUP ── */}
+      {paymentConfirmedModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-gradient-to-b from-[#1c150e] via-[#140f0a] to-[#0e0b08] border-2 border-amber-400 rounded-3xl p-6 text-center space-y-4 shadow-[0_0_50px_rgba(245,158,11,0.35)] relative overflow-hidden animate-scale-up">
+            {/* Background Glow */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Crown Logo & Verified Badge */}
+            <div className="relative mx-auto w-20 h-20">
+              <div className="w-20 h-20 rounded-2xl bg-[#221810] border-2 border-amber-400/50 p-2 shadow-inner mx-auto flex items-center justify-center">
+                <img src="/logo-emblem.png" alt="SURRAT ND" className="w-full h-full object-contain" />
+              </div>
+              <div className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-emerald-400 text-black flex items-center justify-center shadow-lg border-2 border-[#140f0a] font-black text-sm">
+                ✓
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 font-mono">
+                ● P2P SETTLEMENT CONFIRMED
+              </span>
+              <h3 className="text-2xl font-black text-amber-100 font-serif mt-1">
+                Payment Credited!
+              </h3>
+              <p className="text-xs text-amber-200/70 mt-0.5">
+                P2P desk has verified your bank UTR and added funds to your wallet.
+              </p>
+            </div>
+
+            {/* Credited Amount Hero */}
+            <div className="py-4 px-3 rounded-2xl bg-[#140f0a] border border-amber-500/30 space-y-1">
+              <span className="text-[11px] text-amber-200/60 uppercase tracking-wide">Amount Added</span>
+              <div className="text-3xl font-black text-emerald-400 font-mono-numbers">
+                +₹{paymentConfirmedModal.amount.toLocaleString('en-IN')}
+              </div>
+              {paymentConfirmedModal.bonus > 0 && (
+                <div className="text-[11px] text-amber-300 font-bold">
+                  ★ Includes +₹{paymentConfirmedModal.bonus.toLocaleString('en-IN')} Welcome Bonus!
+                </div>
+              )}
+              <div className="pt-2 mt-2 border-t border-amber-500/15 flex items-center justify-between text-xs">
+                <span className="text-amber-200/60">New Wallet Balance:</span>
+                <span className="text-base font-black text-amber-200 font-mono-numbers">
+                  ₹{paymentConfirmedModal.newBalance.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            {/* Reference Details */}
+            <div className="text-[11px] font-mono text-left bg-black/40 border border-amber-500/20 rounded-xl p-3 space-y-1 text-amber-200/80">
+              {paymentConfirmedModal.utrNumber && (
+                <div className="flex justify-between">
+                  <span className="text-amber-200/50">Bank UTR:</span>
+                  <span className="font-bold text-amber-300">{paymentConfirmedModal.utrNumber}</span>
+                </div>
+              )}
+              {paymentConfirmedModal.txId && (
+                <div className="flex justify-between">
+                  <span className="text-amber-200/50">Order Ref:</span>
+                  <span className="text-amber-200/80 truncate max-w-[170px]">{paymentConfirmedModal.txId}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-amber-200/50">Verified At:</span>
+                <span className="text-amber-200">{paymentConfirmedModal.confirmedAt || 'Just now'}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  sound.playButtonClick();
+                  setPaymentConfirmedModal(null);
+                  openArena();
+                }}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black font-black text-sm pressable border border-amber-300 shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 fill-black" />
+                <span>Play in Arena Now</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  sound.playButtonClick();
+                  setPaymentConfirmedModal(null);
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#221810] hover:bg-[#2c1f15] text-amber-200/80 text-xs font-bold transition border border-amber-500/25"
+              >
+                Dismiss & Stay in Dashboard
+              </button>
+            </div>
           </div>
         </div>
       )}

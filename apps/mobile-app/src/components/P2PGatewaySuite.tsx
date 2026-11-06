@@ -23,6 +23,7 @@ import {
   Headphones,
   Scale,
   Sparkles,
+  Lock,
   Info
 } from 'lucide-react';
 
@@ -145,6 +146,7 @@ export function P2PGatewaySuite({
   const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number>(900); // 15 mins countdown
   const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
+  const [submittedUtrTime, setSubmittedUtrTime] = useState<string>('');
 
   // Receipt Modal State
   const [activeReceipt, setActiveReceipt] = useState<P2PReceipt | null>(null);
@@ -337,6 +339,8 @@ export function P2PGatewaySuite({
       }
       setSubmittedUtrRef(cleanUtr);
       setIsWaitingP2PApproval(true);
+      const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      setSubmittedUtrTime(nowTime);
       sound.playSuccess();
       showToast(`UTR ${cleanUtr} submitted! Verification in progress...`);
       setTimeout(() => onRefreshWallet(false), 2000);
@@ -838,10 +842,16 @@ export function P2PGatewaySuite({
               <input
                 type="text"
                 maxLength={12}
+                disabled={isWaitingP2PApproval}
+                readOnly={isWaitingP2PApproval}
                 value={utrInput}
                 onChange={e => setUtrInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="e.g. 429188012345"
-                className="w-full bg-[#140f0a] border border-amber-500/30 rounded-xl px-4 py-2.5 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-sm outline-none focus:border-amber-400"
+                className={`w-full bg-[#140f0a] border rounded-xl px-4 py-2.5 font-mono-numbers text-sm outline-none ${
+                  isWaitingP2PApproval
+                    ? 'border-emerald-500/40 text-emerald-300 bg-emerald-950/20 cursor-not-allowed'
+                    : 'border-amber-500/30 text-amber-100 placeholder:text-amber-200/30 focus:border-amber-400'
+                }`}
               />
             </div>
 
@@ -856,17 +866,22 @@ export function P2PGatewaySuite({
                     <img src={screenshotBase64} alt="Receipt" className="w-8 h-8 rounded-lg object-cover border border-amber-500/30" />
                     <span className="text-xs text-amber-200 truncate max-w-[180px]">receipt_attached.jpg</span>
                   </div>
-                  <button onClick={() => setScreenshotBase64(null)} className="text-amber-200/60 hover:text-white p-1">
-                    <X className="w-4 h-4" />
-                  </button>
+                  {!isWaitingP2PApproval && (
+                    <button onClick={() => setScreenshotBase64(null)} className="text-amber-200/60 hover:text-white p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ) : (
-                <label className="w-full py-2.5 px-3 rounded-xl bg-[#140f0a] border border-dashed border-amber-500/30 hover:border-amber-400 text-center flex items-center justify-center gap-2 cursor-pointer pressable">
+                <label className={`w-full py-2.5 px-3 rounded-xl bg-[#140f0a] border border-dashed border-amber-500/30 text-center flex items-center justify-center gap-2 ${
+                  isWaitingP2PApproval ? 'opacity-50 cursor-not-allowed' : 'hover:border-amber-400 cursor-pointer pressable'
+                }`}>
                   <Upload className="w-3.5 h-3.5 text-amber-400" />
                   <span className="text-xs text-amber-200/70">Upload Payment Receipt</span>
                   <input
                     type="file"
                     accept="image/*"
+                    disabled={isWaitingP2PApproval}
                     onChange={async e => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -885,13 +900,29 @@ export function P2PGatewaySuite({
               )}
             </div>
 
-            <button
-              disabled={isSubmittingProof || utrInput.length !== 12}
-              onClick={handleSubmitUtrProof}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs pressable border border-amber-300 shadow-md shadow-amber-500/20 disabled:opacity-40"
-            >
-              {isSubmittingProof ? 'Submitting to Desk...' : 'Submit Proof for Instant Desk Matching'}
-            </button>
+            {isWaitingP2PApproval ? (
+              <div className="space-y-2 pt-1">
+                <button
+                  disabled={true}
+                  className="w-full py-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-black text-xs flex items-center justify-center gap-2 cursor-not-allowed shadow-inner"
+                >
+                  <Lock className="w-4 h-4 text-emerald-400" />
+                  <span>UTR Proof Locked at {submittedUtrTime || 'Just now'}</span>
+                </button>
+                <div className="p-2.5 rounded-xl bg-[#140f0a] border border-amber-500/30 text-[11px] text-amber-200/80 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                  <span>1 Request per UTR strictly enforced. Proof locked at <strong>{submittedUtrTime || 'Just now'}</strong>. P2P desk is verifying your transfer.</span>
+                </div>
+              </div>
+            ) : (
+              <button
+                disabled={isSubmittingProof || utrInput.length !== 12}
+                onClick={handleSubmitUtrProof}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs pressable border border-amber-300 shadow-md shadow-amber-500/20 disabled:opacity-40"
+              >
+                {isSubmittingProof ? 'Submitting to Desk...' : 'Submit Proof for Instant Desk Matching'}
+              </button>
+            )}
           </div>
 
           {/* Visual Chronological Timeline Stepper */}

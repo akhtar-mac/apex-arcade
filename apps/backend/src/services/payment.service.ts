@@ -335,6 +335,9 @@ export class PaymentService {
     if (!existingIntent || existingIntent.type !== TxType.DEPOSIT || existingIntent.status !== TxStatus.PENDING) {
       throw new Error('Open the payment QR first, then submit the 12-digit UTR.');
     }
+    if (existingIntent.utrNumber) {
+      throw new Error(`This deposit order already has UTR ${existingIntent.utrNumber} submitted and locked. Only 1 request allowed per UTR.`);
+    }
     if (existingIntent.userId !== userId) {
       throw new Error('That deposit does not belong to this player');
     }
