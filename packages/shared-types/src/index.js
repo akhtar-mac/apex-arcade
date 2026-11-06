@@ -25,6 +25,10 @@ var TxStatus;
     TxStatus["SUCCESS"] = "SUCCESS";
     TxStatus["FAILED"] = "FAILED";
     TxStatus["REJECTED"] = "REJECTED";
+    TxStatus["CANCELLED"] = "CANCELLED";
+    TxStatus["DISPUTED"] = "DISPUTED";
+    TxStatus["UNDER_REVIEW"] = "UNDER_REVIEW";
+    TxStatus["EXPIRED"] = "EXPIRED";
 })(TxStatus || (exports.TxStatus = TxStatus = {}));
 var RoundStatus;
 (function (RoundStatus) {

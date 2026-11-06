@@ -15,7 +15,11 @@ export declare enum TxStatus {
     PENDING = "PENDING",
     SUCCESS = "SUCCESS",
     FAILED = "FAILED",
-    REJECTED = "REJECTED"
+    REJECTED = "REJECTED",
+    CANCELLED = "CANCELLED",
+    DISPUTED = "DISPUTED",
+    UNDER_REVIEW = "UNDER_REVIEW",
+    EXPIRED = "EXPIRED"
 }
 export declare enum RoundStatus {
     BETTING = "BETTING",

@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { NativeUpiService, HapticFeedback } from './services/native-upi.js';
 import { sound } from './services/sound.js';
+import { P2PGatewaySuite } from './components/P2PGatewaySuite';
 
 // CONSTANTS & GAME DATA
 
@@ -114,7 +115,7 @@ export const ROOMS: RoomTier[] = [
   { id: 'room-tier-100', name: 'High Roller',  tierLabel: 'VIP 240s',  minEntry: 100, interval: 240, activePlayers: 0, cards: PICTURE_CARDS },
 ];
 
-export type NavTab = 'lobby' | 'arena' | 'activity' | 'profile';
+export type NavTab = 'lobby' | 'arena' | 'p2p' | 'activity' | 'profile';
 export type RoundStatus = 'BETTING' | 'LOCKED' | 'RESOLVING';
 
 export interface ActivityItem {
@@ -231,6 +232,12 @@ export default function MobileApp() {
   const [isSyncingWallet, setIsSyncingWallet] = useState(false);
   const [fundWizardOpen, setFundWizardOpen] = useState(false);
   const [offerDismissed, setOfferDismissed] = useState(false);
+  const [p2pInitialTab, setP2pInitialTab] = useState<'overview' | 'create' | 'checkout' | 'history' | 'disputes'>('overview');
+
+  const openP2pGateway = (subTab: 'overview' | 'create' | 'checkout' | 'history' | 'disputes' = 'overview') => {
+    setP2pInitialTab(subTab);
+    setActiveTab('p2p');
+  };
 
   // User Balance & Sound
   const [balance, setBalance] = useState<number>(0);
@@ -779,6 +786,9 @@ export default function MobileApp() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      if (memoryAccessToken) {
+        socket.emit('auth:identify', { token: memoryAccessToken });
+      }
       if (activeTab === 'arena') {
         socket.emit('join:room', selectedRoom.id);
         socket.emit('round:sync', { roomId: selectedRoom.id });
@@ -938,6 +948,16 @@ export default function MobileApp() {
       }
     });
 
+    socket.on('transaction:updated', (data: any) => {
+      refreshWallet(true);
+      if (data?.status === 'SUCCESS') {
+        sound.playCoin();
+        showToast(`🎉 Transaction Verified! Wallet Credited ₹${data.amount}`);
+      } else if (data?.status === 'REJECTED') {
+        showToast(`⚠️ Deposit was rejected: ${data.reason || 'Invalid UTR'}`);
+      }
+    });
+
     // Local countdown fallback in case socket reconnects
     const fallbackTimer = setInterval(() => {
       setSecondsRemaining(prev => {
@@ -955,7 +975,7 @@ export default function MobileApp() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [API_BASE, isLoggedIn]);
+  }, [API_BASE, isLoggedIn, memoryAccessToken]);
 
   // Handle arena room subscription separately from global connection
   useEffect(() => {
@@ -1068,7 +1088,8 @@ export default function MobileApp() {
 
   const openDeposit = () => {
     setFundWizardOpen(false);
-    setDepositModalOpen(true);
+    setDepositModalOpen(false);
+    openP2pGateway('create');
   };
 
   const handlePlaceBet = (cardId: number, amount = selectedChip) => {
@@ -2297,9 +2318,9 @@ export default function MobileApp() {
 
           {/* Deposit Trigger */}
           <button
-            onClick={() => setDepositModalOpen(true)}
+            onClick={() => openP2pGateway('create')}
             className="w-8 h-8 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black flex items-center justify-center font-black text-base pressable shadow-md shadow-amber-500/20 border border-amber-300 shrink-0"
-            title="Add Cash"
+            title="Add Cash (P2P Gateway)"
           >
             +
           </button>
@@ -2884,6 +2905,35 @@ export default function MobileApp() {
         </main>
       )}
 
+      {activeTab === 'p2p' && (
+        <main className="p-3 xs:p-4 space-y-4 animate-fade-in pb-24">
+          <P2PGatewaySuite
+            API_BASE={API_BASE}
+            balance={balance}
+            lockedBalance={lockedBalance}
+            phoneNumber={phoneNumber}
+            userName={userName || 'VIP Player'}
+            authHeaders={() => ({
+              'Authorization': `Bearer ${memoryAccessToken}`,
+              'Content-Type': 'application/json'
+            })}
+            showToast={showToast}
+            sound={sound}
+            onRefreshWallet={(fb) => refreshWallet(fb)}
+            activeUpiInfo={activeUpiInfo}
+            onOpenArena={() => openArena()}
+            onOpenSupport={() => setSupportModalOpen(true)}
+            isWaitingP2PApproval={isWaitingP2PApproval}
+            setIsWaitingP2PApproval={setIsWaitingP2PApproval}
+            submittedUtrRef={submittedUtrRef}
+            setSubmittedUtrRef={setSubmittedUtrRef}
+            pendingDepositId={pendingDepositId}
+            setPendingDepositId={setPendingDepositId}
+            initialSubTab={p2pInitialTab}
+          />
+        </main>
+      )}
+
       {activeTab === 'activity' && (
         <main className="p-4 space-y-4 animate-fade-in">
           <div>
@@ -3191,10 +3241,11 @@ export default function MobileApp() {
       )}
 
       {/* ── FIXED BOTTOM NAVIGATION DOCK ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#140f0a]/95 backdrop-blur-md border-t border-amber-500/25 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 xs:px-6 max-w-md mx-auto flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.7)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#140f0a]/95 backdrop-blur-md border-t border-amber-500/25 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-2.5 xs:px-4 max-w-md mx-auto flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.7)]">
         {[
           { id: 'lobby', label: 'Lobby', icon: Trophy },
           { id: 'arena', label: 'Arena', icon: Play },
+          { id: 'p2p', label: 'P2P Pay', icon: Zap },
           { id: 'activity', label: 'Activity', icon: History },
           { id: 'profile', label: 'Profile', icon: User },
         ].map(item => {

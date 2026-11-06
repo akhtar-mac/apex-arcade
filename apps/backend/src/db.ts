@@ -58,8 +58,8 @@ export const DB = {
   async recordTransaction(tx: {
     id: string;
     userId: string;
-    type: 'DEPOSIT' | 'WITHDRAWAL' | 'BET_PLACED' | 'BET_WON' | 'REFUND';
-    status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REJECTED';
+    type: 'DEPOSIT' | 'WITHDRAWAL' | 'BET_PLACED' | 'BET_WON' | 'REFUND' | string;
+    status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REJECTED' | 'CANCELLED' | 'DISPUTED' | 'UNDER_REVIEW' | 'EXPIRED' | string;
     amount: number;
     tdsAmount?: number | null;
     netAmount?: number | null;
@@ -76,8 +76,8 @@ export const DB = {
     const prisma = getPrisma();
     const data = {
       userId: tx.userId,
-      type: tx.type,
-      status: tx.status,
+      type: tx.type as any,
+      status: tx.status as any,
       amount: round2(tx.amount),
       tdsAmount: tx.tdsAmount ?? null,
       netAmount: tx.netAmount ?? round2(tx.amount),

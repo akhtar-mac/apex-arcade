@@ -89,6 +89,29 @@ export function setupSocketServer(httpServer: HttpServer) {
       socket.join(`user:${currentUserId}`);
     }
 
+    // Dynamic Client Re-Authentication & Room Joining
+    socket.on('auth:identify', async (payload: { token?: string }) => {
+      const token = payload?.token;
+      if (token) {
+        const authPayload = await AuthService.verifyToken(token);
+        if (authPayload && authPayload.userId) {
+          if (currentUserId !== 'guest' && currentUserId !== authPayload.userId) {
+            socket.leave(`user:${currentUserId}`);
+          }
+          currentUserId = authPayload.userId;
+          socket.data.userId = authPayload.userId;
+          socket.join(`user:${currentUserId}`);
+          if ((authPayload.role as string) === 'ADMIN' || (authPayload.role as string) === 'SUPERADMIN') {
+            socket.join('role:ADMIN');
+          }
+          if ((authPayload.role as string) === 'AGENT' || (authPayload.role as string) === 'ADMIN') {
+            socket.join('role:AGENT');
+          }
+          socket.emit('auth:identified', { userId: currentUserId, success: true });
+        }
+      }
+    });
+
     // Join game room (e.g. 'room-tier-10')
     socket.on('join:room', (roomId: string) => {
       if (typeof roomId !== 'string' || roomId.startsWith('user:')) return;

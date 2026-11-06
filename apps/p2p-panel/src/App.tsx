@@ -58,7 +58,23 @@ interface LogEntry {
   type: 'DEP' | 'WD';
 }
 
-type ActiveTab = 'deposits' | 'withdrawals' | 'upi-rotator' | 'logs';
+interface DisputeItem {
+  id: string;
+  userId: string;
+  phone: string;
+  name: string;
+  amount: number;
+  type: string;
+  status: string;
+  utrNumber?: string;
+  disputeReason?: string;
+  disputeEvidence?: string;
+  disputedAt?: string;
+  createdAt: string;
+  ageSeconds: number;
+}
+
+type ActiveTab = 'deposits' | 'withdrawals' | 'disputes' | 'upi-rotator' | 'logs';
 
 interface UpiAccountItem {
   id: string;
@@ -104,8 +120,12 @@ export default function P2PApp() {
 
   const [deposits, setDeposits] = useState<DepositItem[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
+  const [disputes, setDisputes] = useState<DisputeItem[]>([]);
   const [selectedDeposit, setSelectedDeposit] = useState<DepositItem | null>(null);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalItem | null>(null);
+  const [selectedDispute, setSelectedDispute] = useState<DisputeItem | null>(null);
+  const [isResolvingDispute, setIsResolvingDispute] = useState(false);
+  const [disputeRejectReason, setDisputeRejectReason] = useState('');
   const [payoutUtr, setPayoutUtr] = useState('');
   const [upiAccounts, setUpiAccounts] = useState<UpiAccountItem[]>([]);
   const [newUpiId, setNewUpiId] = useState('');
@@ -134,9 +154,10 @@ export default function P2PApp() {
   const fetchLiveQueues = useCallback(async () => {
     if (!staffToken) return;
     try {
-      const [depRes, wdRes] = await Promise.all([
+      const [depRes, wdRes, disRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/admin/p2p-queue`).then(r => r.json()).catch(() => null),
         fetch(`${API_BASE}/api/v1/admin/withdrawals`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}/api/v1/admin/disputes`).then(r => r.json()).catch(() => null),
       ]);
 
       if (depRes?.success && Array.isArray(depRes.data)) {
@@ -171,6 +192,26 @@ export default function P2PApp() {
         }));
         setWithdrawals(liveWd);
         setSelectedWithdrawal(current => liveWd.find(item => item.id === current?.id) || liveWd[0] || null);
+      }
+
+      if (disRes?.success && Array.isArray(disRes.data)) {
+        const liveDis: DisputeItem[] = disRes.data.map((d: any) => ({
+          id: d.id,
+          userId: d.userId,
+          phone: d.user?.phoneNumber || 'Unknown',
+          name: d.user?.fullName || d.user?.legalName || `User #${(d.user?.phoneNumber || '').slice(-4)}`,
+          amount: Number(d.amount),
+          type: d.type,
+          status: d.status,
+          utrNumber: d.utrNumber || 'N/A',
+          disputeReason: d.disputeReason || 'Disputed by player',
+          disputeEvidence: d.disputeEvidence || d.screenshot || undefined,
+          disputedAt: d.disputedAt || d.createdAt,
+          createdAt: d.createdAt,
+          ageSeconds: Math.max(0, Math.floor((Date.now() - new Date(d.disputedAt || d.createdAt).getTime()) / 1000))
+        }));
+        setDisputes(liveDis);
+        setSelectedDispute(current => liveDis.find(item => item.id === current?.id) || liveDis[0] || null);
       }
     } catch {}
   }, [API_BASE, staffToken]);
@@ -244,6 +285,7 @@ export default function P2PApp() {
     const t = setInterval(() => {
       setDeposits(prev => prev.map(d => ({ ...d, ageSeconds: d.ageSeconds + 1 })));
       setWithdrawals(prev => prev.map(w => ({ ...w, ageSeconds: w.ageSeconds + 1 })));
+      setDisputes(prev => prev.map(dis => ({ ...dis, ageSeconds: dis.ageSeconds + 1 })));
     }, 1000);
     return () => clearInterval(t);
   }, []);
@@ -253,6 +295,36 @@ export default function P2PApp() {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(''), 1800);
+  };
+
+  // ── Resolve dispute (Arbitration Desk) ──
+  const handleResolveDispute = async (id: string, action: 'APPROVE' | 'REJECT', reason?: string) => {
+    setIsResolvingDispute(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/disputes/${id}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason: reason || 'Arbitrated by desk operator' })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        window.alert(data?.error || 'Failed to resolve dispute.');
+        return;
+      }
+      setDisputes(prev => prev.filter(d => d.id !== id));
+      setSelectedDispute(null);
+      setDisputeRejectReason('');
+      fetchLiveQueues();
+      const logEntry: LogEntry = {
+        id: 'lg-' + Date.now(),
+        text: `Arbitration: ${action} dispute ${id.slice(-6)} (${reason || 'Desk verified'})`,
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+        type: 'DEP',
+      };
+      setLogs(prev => [logEntry, ...prev]);
+    } finally {
+      setIsResolvingDispute(false);
+    }
   };
 
   // ── Approve deposit ──
@@ -435,11 +507,12 @@ export default function P2PApp() {
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-5">
 
         {/* Queue Counters */}
-        <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Pending Deposits', count: deposits.length, color: '#0df59d', icon: <ArrowDownToLine className="w-4 h-4" />, urgent: deposits.some(d => d.ageSeconds > 300) },
             { label: 'Pending Payouts', count: withdrawals.length, color: '#00e5ff', icon: <ArrowUpFromLine className="w-4 h-4" />, urgent: withdrawals.some(w => w.ageSeconds > 300) },
-            { label: 'Processed Today', count: logs.length, color: '#ffb800', icon: <CheckCircle className="w-4 h-4" />, urgent: false },
+            { label: 'Open Disputes', count: disputes.length, color: '#f59e0b', icon: <AlertTriangle className="w-4 h-4" />, urgent: disputes.length > 0 },
+            { label: 'Processed Today', count: logs.length, color: '#a78bfa', icon: <CheckCircle className="w-4 h-4" />, urgent: false },
           ].map(c => (
             <div key={c.label} className={`p-4 rounded-2xl bg-[#111826] border transition ${c.urgent ? 'border-amber-500/40 urgent-timer' : 'border-white/[0.06]'}`}>
               <div className="flex items-center justify-between mb-2">
@@ -453,10 +526,11 @@ export default function P2PApp() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex items-center gap-1 border-b border-white/[0.06]">
+        <div className="flex items-center gap-1 border-b border-white/[0.06] overflow-x-auto">
           {[
             { id: 'deposits',    icon: <ArrowDownToLine className="w-4 h-4" />, label: `Incoming Deposits (${deposits.length})` },
             { id: 'withdrawals', icon: <ArrowUpFromLine className="w-4 h-4" />,  label: `Outgoing Payouts (${withdrawals.length})` },
+            { id: 'disputes',    icon: <AlertTriangle className="w-4 h-4" />,   label: `Disputes & Appeals (${disputes.length})` },
             { id: 'upi-rotator', icon: <QrCode className="w-4 h-4" />,          label: 'QR Limits & Rotation' },
             { id: 'logs',        icon: <History className="w-4 h-4" />,          label: 'Shift Log' },
           ].map(tab => (
@@ -766,6 +840,151 @@ export default function P2PApp() {
                 <div className="py-24 text-center text-slate-600 rounded-3xl bg-[#111826] border border-dashed border-white/[0.06]">
                   <ArrowUpFromLine className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="font-semibold text-sm">Select a payout to process</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'disputes' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
+            {/* Disputes Queue List */}
+            <div className="lg:col-span-5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold mb-2 px-1">
+                <span>OPEN DISPUTES & APPEALS ({disputes.length})</span>
+                <span className="text-amber-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 live-dot" /> Arbitration Desk
+                </span>
+              </div>
+
+              {disputes.length === 0 ? (
+                <div className="py-16 text-center rounded-2xl bg-[#111826] border border-white/[0.06]">
+                  <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-60" />
+                  <h4 className="font-black text-white text-sm">No Open Disputes</h4>
+                  <p className="text-xs text-slate-500 mt-1">All player transactions are reconciled or resolved.</p>
+                </div>
+              ) : disputes.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedDispute(item)}
+                  className={`queue-item p-4 rounded-2xl border cursor-pointer transition ${selectedDispute?.id === item.id ? 'border-amber-400/50 bg-[#1e1b12]' : 'bg-[#111826] border-white/[0.06] hover:border-white/20'}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-black text-sm text-white">{item.name}</span>
+                      <span className="text-[11px] text-slate-400 block">{item.phone}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-base font-black text-amber-400 font-mono-numbers">₹{item.amount.toLocaleString('en-IN')}</span>
+                      <span className="text-[10px] block font-semibold mt-0.5 text-amber-400">
+                        {formatAge(item.ageSeconds)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-mono text-slate-500">UTR: {item.utrNumber}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-bold text-[10px] border border-amber-500/30">DISPUTED</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Arbitration Details Console */}
+            <div className="lg:col-span-7">
+              {selectedDispute ? (
+                <div className="p-6 rounded-3xl bg-[#111826] border border-amber-500/20 space-y-5 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+                    <div>
+                      <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Arbitration Case</span>
+                      <h3 className="text-xl font-black text-white font-mono mt-0.5">{selectedDispute.id}</h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40">
+                      UNDER ARBITRATION
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1">
+                      <span className="text-slate-500 text-[10px] uppercase font-bold block">Player Account</span>
+                      <p className="font-bold text-white text-sm">{selectedDispute.name}</p>
+                      <p className="font-mono text-slate-400">{selectedDispute.phone}</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] space-y-1">
+                      <span className="text-slate-500 text-[10px] uppercase font-bold block">Disputed Amount</span>
+                      <p className="font-black text-amber-400 text-lg font-mono-numbers">₹{selectedDispute.amount.toLocaleString('en-IN')}</p>
+                      <p className="font-mono text-slate-400">Type: {selectedDispute.type}</p>
+                    </div>
+                  </div>
+
+                  {/* Player's Stated Reason */}
+                  <div className="p-4 rounded-xl bg-[#1c1813] border border-amber-500/30 space-y-1.5">
+                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> Player Dispute Explanation
+                    </span>
+                    <p className="text-xs text-amber-100 font-medium leading-relaxed">
+                      "{selectedDispute.disputeReason}"
+                    </p>
+                    <div className="flex items-center gap-2 pt-1 font-mono text-[11px] text-slate-400">
+                      <span>Submitted UTR:</span>
+                      <span className="text-white font-bold">{selectedDispute.utrNumber}</span>
+                      <button
+                        onClick={() => copyText(selectedDispute.utrNumber || '', 'dis-utr')}
+                        className="text-amber-400 hover:text-white p-0.5"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Evidence Screenshot if available */}
+                  {selectedDispute.disputeEvidence && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Player Uploaded Proof</span>
+                      <div className="max-h-72 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/50 p-2 flex items-center justify-center">
+                        <img
+                          src={selectedDispute.disputeEvidence}
+                          alt="Dispute Proof"
+                          className="max-h-64 object-contain rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reject Reason Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Operator Decision Notes (Optional for reject)</label>
+                    <input
+                      type="text"
+                      value={disputeRejectReason}
+                      onChange={e => setDisputeRejectReason(e.target.value)}
+                      placeholder="e.g. Bank statement confirms UTR does not match any incoming credit"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                      onClick={() => handleResolveDispute(selectedDispute.id, 'REJECT', disputeRejectReason)}
+                      disabled={isResolvingDispute}
+                      className="py-3.5 rounded-2xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 font-bold text-xs transition disabled:opacity-50"
+                    >
+                      Reject Dispute
+                    </button>
+                    <button
+                      onClick={() => handleResolveDispute(selectedDispute.id, 'APPROVE')}
+                      disabled={isResolvingDispute}
+                      className="py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-black text-xs transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Approve & Credit Balance
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-24 text-center text-slate-600 rounded-3xl bg-[#111826] border border-dashed border-white/[0.06]">
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30 text-amber-400" />
+                  <p className="font-semibold text-sm">Select an open dispute to arbitrate</p>
                 </div>
               )}
             </div>

@@ -133,7 +133,7 @@ adminRouter.get('/stats', async (_req: Request, res: Response) => {
 
 adminRouter.get('/p2p-queue', async (_req: Request, res: Response) => {
   const rows = await getPrisma().transaction.findMany({
-    where: { type: 'DEPOSIT', status: 'PENDING', utrNumber: { not: null } },
+    where: { type: 'DEPOSIT', status: { in: ['PENDING', 'DISPUTED', 'UNDER_REVIEW'] }, utrNumber: { not: null } },
     include: { user: true },
     orderBy: { createdAt: 'asc' },
     take: 200
@@ -146,6 +146,37 @@ adminRouter.get('/p2p-queue', async (_req: Request, res: Response) => {
     panNumber: user.panNumber || null
   }));
   return res.json({ success: true, data: pendingDeposits });
+});
+
+// Dedicated Disputes & Appeals Queue
+adminRouter.get('/disputes', async (_req: Request, res: Response) => {
+  const rows = await getPrisma().transaction.findMany({
+    where: { status: 'DISPUTED' },
+    include: { user: true, upiAccount: true },
+    orderBy: { updatedAt: 'desc' },
+    take: 100
+  });
+  return res.json({ success: true, data: rows });
+});
+
+// Resolve Dispute: Approve or Reject
+adminRouter.post('/disputes/:id/resolve', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body;
+    const adminId = (req as any).user.userId;
+    if (action === 'APPROVE') {
+      const result = await PaymentService.approveDeposit(id, adminId);
+      await Ledger.recordDeskAction(adminId, 'dispute.approve', id, `Resolved dispute by crediting deposit ${id}`);
+      return res.json({ success: true, message: 'Dispute approved and funds credited to user.', data: result });
+    } else {
+      const result = await PaymentService.rejectDeposit(id, adminId, reason || 'Dispute rejected by operator');
+      await Ledger.recordDeskAction(adminId, 'dispute.reject', id, reason || 'Dispute rejected');
+      return res.json({ success: true, message: 'Dispute closed and rejected.', data: result });
+    }
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 adminRouter.post('/p2p-queue/:id/approve', async (req: Request, res: Response) => {

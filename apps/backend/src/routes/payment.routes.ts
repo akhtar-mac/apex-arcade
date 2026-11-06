@@ -170,6 +170,67 @@ paymentRouter.get('/history', async (req: Request, res: Response) => {
   return res.json({ success: true, data: history });
 });
 
+// ── 7B. P2P Payment Orchestration & Client Gateway Suite Endpoints ──
+
+// Cancel unpaid deposit intent
+paymentRouter.post('/cancel-order', requireRegulatedRelease, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const { transactionId } = req.body;
+    if (!transactionId) return res.status(400).json({ success: false, error: 'Transaction ID is required.' });
+    const result = await PaymentService.cancelDepositIntent(userId, transactionId);
+    return res.json({ success: true, message: 'Order cancelled.', data: result });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// File dispute / appeal for delayed or mismatched UTR
+paymentRouter.post('/dispute', requireRegulatedRelease, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const { transactionId, reason, evidence } = req.body;
+    if (!transactionId) return res.status(400).json({ success: false, error: 'Transaction ID is required.' });
+    const result = await PaymentService.disputeTransaction(userId, transactionId, reason, evidence);
+    return res.json({ success: true, message: 'Dispute submitted to arbitration desk.', data: result });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// P2P Dashboard Analytics & Health Stats
+paymentRouter.get('/p2p-stats', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const stats = await PaymentService.getP2pStats(userId);
+    return res.json({ success: true, data: stats });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Verifiable Cryptographic Receipt
+paymentRouter.get('/receipt/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const receipt = await PaymentService.getTransactionReceipt(userId, req.params.id);
+    return res.json({ success: true, data: receipt });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Single Order Status Tracker
+paymentRouter.get('/order/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const receipt = await PaymentService.getTransactionReceipt(userId, req.params.id);
+    return res.json({ success: true, data: receipt });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // ── 8. Multi-UPI & QR Dynamic Rotation Endpoints ──
 paymentRouter.get('/active-upi', (req: Request, res: Response) => {
   try {

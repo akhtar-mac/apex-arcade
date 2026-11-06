@@ -26,6 +26,10 @@ enum TxStatus {
   SUCCESS
   FAILED
   REJECTED
+  CANCELLED
+  DISPUTED
+  UNDER_REVIEW
+  EXPIRED
 }
 
 enum RoundStatus {
@@ -135,6 +139,11 @@ model Transaction {
   upiAccount      UpiAccount? @relation(fields: [upiAccountId], references: [id])
   payoutUpi       String?
   rejectionReason String?
+  disputeReason   String?
+  disputeEvidence String?
+  disputedAt      DateTime?
+  expiresAt       DateTime?
+  fee             Decimal?  @default(0.00) @db.Decimal(12, 2)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
