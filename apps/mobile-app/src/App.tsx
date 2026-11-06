@@ -144,6 +144,43 @@ export interface LiveFeedBetItem {
 }
 
 // Centralized betting sound system imported from ./services/sound.js
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve((e.target?.result as string) || '');
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = (e.target?.result as string) || '';
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 let memoryAccessToken = '';
 
 if (typeof window !== 'undefined') {
@@ -727,7 +764,7 @@ export default function MobileApp() {
           const payout = userBet * (Number(data.multiplier) || arenaMultiplier);
           setBalanceFlash(true);
           setTimeout(() => setBalanceFlash(false), 800);
-          sound.playBetWon();
+          sound.playBetWon(cardObj.name);
           HapticFeedback.winCelebration();
           setWinModalData({ card: cardObj, winAmount: payout });
           setActivityHistory(h => [
@@ -745,6 +782,7 @@ export default function MobileApp() {
         } else if (Object.keys(placedBetsRef.current).length > 0) {
           const totalBet = Object.values(placedBetsRef.current).reduce((a, b) => a + b, 0);
           sound.playBetLost();
+          sound.speak(`${cardObj.name} won!`);
           setActivityHistory(h => [
             {
               id: `TX-${Date.now()}`,
@@ -759,6 +797,7 @@ export default function MobileApp() {
           ]);
         } else {
           sound.playNotification();
+          sound.speak(`${cardObj.name} won!`);
         }
 
         setLastPlacedBets({ ...placedBetsRef.current });
@@ -1065,6 +1104,7 @@ export default function MobileApp() {
         body: JSON.stringify({
           utrNumber: utrInput,
           amount: depositAmount,
+          screenshotBase64: paymentScreenshot || undefined,
           transactionId: pendingDepositId || undefined
         })
       });
@@ -1090,6 +1130,7 @@ export default function MobileApp() {
       setDepositModalOpen(false);
       setUtrInput('');
       setPendingDepositId('');
+      setPaymentScreenshot(null);
     } catch {
       showToast('Could not submit the UTR.');
     }
@@ -3271,15 +3312,16 @@ export default function MobileApp() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={e => {
+                        onChange={async e => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setPaymentScreenshot(reader.result as string);
+                            try {
+                              const compressed = await compressImage(file);
+                              setPaymentScreenshot(compressed);
                               showToast('Screenshot attached successfully.');
-                            };
-                            reader.readAsDataURL(file);
+                            } catch {
+                              showToast('Could not process screenshot. Try another.');
+                            }
                           }
                         }}
                         className="hidden"

@@ -1,6 +1,6 @@
 /**
  * Centralized Betting Sound Manager for Apex Arcade
- * Pure Web Audio API Synthesis - Zero External Media Dependencies
+ * Web Audio API Synthesis + Native Female Hostess Voice
  * 100% Offline, Zero Latency, Mobile Autoplay Compliant
  */
 
@@ -21,6 +21,7 @@ class BettingSoundManager {
   private _enabled: boolean = true;
   private isUnlocked: boolean = false;
   private lastSoundTime: Map<string, number> = new Map();
+  private voices: SpeechSynthesisVoice[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -37,6 +38,19 @@ class BettingSoundManager {
       window.addEventListener('click', unlockAudio, { passive: true });
       window.addEventListener('touchstart', unlockAudio, { passive: true });
       window.addEventListener('keydown', unlockAudio, { passive: true });
+
+      // Cache SpeechSynthesis voices
+      if ('speechSynthesis' in window) {
+        const loadVoices = () => {
+          try {
+            this.voices = window.speechSynthesis.getVoices() || [];
+          } catch {}
+        };
+        loadVoices();
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+      }
     }
   }
 
@@ -86,6 +100,9 @@ class BettingSoundManager {
         source.start(0);
         this.isUnlocked = true;
       }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        this.voices = window.speechSynthesis.getVoices() || [];
+      }
     } catch {
       // AudioContext policy suppression
     }
@@ -100,132 +117,169 @@ class BettingSoundManager {
   }
 
   /**
-   * 1. bet_now: Upbeat upward arpeggio chime when betting phase opens
+   * Natural female voice selector for arcade dealer/hostess announcements
+   */
+  private getFemaleVoice(): SpeechSynthesisVoice | null {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    if (!this.voices || this.voices.length === 0) {
+      try {
+        this.voices = window.speechSynthesis.getVoices() || [];
+      } catch {}
+    }
+    const list = this.voices;
+    if (!list || list.length === 0) return null;
+
+    // 1. Natural female named voice (Samantha, Karen, Victoria, Zira, Jenny, Moira, Tessa, etc.)
+    const femaleRegex = /(female|woman|samantha|karen|victoria|zira|moira|tessa|veena|lekha|jenny|aria|natasha|sonia|google.*female)/i;
+    const female = list.find(v => femaleRegex.test(v.name));
+    if (female) return female;
+
+    // 2. High quality Google/Microsoft/Apple English voice
+    const naturalEn = list.find(v => (v.lang.startsWith('en-IN') || v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) && /google|natural|online/i.test(v.name));
+    if (naturalEn) return naturalEn;
+
+    // 3. Fallback to any English or primary voice
+    const anyEn = list.find(v => v.lang.startsWith('en'));
+    return anyEn || list[0] || null;
+  }
+
+  /**
+   * Speak announcement using female voice (1-2 seconds duration)
+   */
+  public speak(text: string, priority = true) {
+    if (!this._enabled || typeof window === 'undefined') return;
+    if (!('speechSynthesis' in window)) return;
+
+    try {
+      if (priority) {
+        window.speechSynthesis.cancel();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = this.getFemaleVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
+      // Crisp, energetic arcade hostess delivery (1-2 sec)
+      utterance.pitch = 1.18;
+      utterance.rate = 1.08;
+      utterance.volume = 1.0;
+
+      window.speechSynthesis.speak(utterance);
+    } catch {}
+  }
+
+  /**
+   * 1. bet_now: Upbeat upward arpeggio chime + Female Voice announcement "Bet now!"
    */
   public playBetNow() {
     if (!this._enabled) return;
     try {
       const ctx = this.getContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + i * 0.06);
-        gain.gain.setValueAtTime(0.12, now + i * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.16);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + i * 0.06);
-        osc.stop(now + i * 0.06 + 0.18);
-      });
+      if (ctx) {
+        const now = ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.06);
+          gain.gain.setValueAtTime(0.14, now + i * 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.06);
+          osc.stop(now + i * 0.06 + 0.18);
+        });
+      }
     } catch {}
+
+    // Female voice: "Bet now!" (1-2 seconds)
+    this.speak('Bet now!');
   }
 
   /**
-   * 2. bet_placed: Crisp physical chip clink or affirmative confirmation
+   * 2. bet_placed: Metallic coins stacking/dropping on the bet box (COIN SOUND)
    */
   public playBetPlaced() {
-    if (!this._enabled) return;
-    try {
-      const ctx = this.getContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      
-      // Dual resonant ping mimicking physical casino ceramic chip
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(1400, now);
-      osc1.frequency.exponentialRampToValueAtTime(700, now + 0.06);
-
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(2800, now);
-      osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
-
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + 0.1);
-      osc2.stop(now + 0.1);
-    } catch {}
+    this.playCoin();
   }
 
   /**
-   * 3. bet_closed: Countdown urgency tone / closing lock bell
+   * 3. bet_closed: Countdown lock bell + Female Voice announcement "Bet closed!"
    */
   public playBetClosed() {
     if (!this._enabled) return;
     try {
       const ctx = this.getContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      if (ctx) {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(800, now);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(600, now);
 
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
 
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
 
-      osc.start(now);
-      osc.stop(now + 0.26);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      }
     } catch {}
+
+    // Female voice: "Bet closed!" (1-2 seconds)
+    this.speak('Bet closed!');
   }
 
   /**
-   * 4. bet_won: Celebratory, rewarding royal fanfare sound effect for wins
+   * 4. bet_won: Royal celebratory fanfare + Female Voice announcement "XXX won!"
    */
-  public playBetWon() {
+  public playBetWon(cardName?: string) {
     if (!this._enabled) return;
     try {
       const ctx = this.getContext();
-      if (!ctx) return;
-      const now = ctx.currentTime;
-      // Majestic 5-note royal trumpet fanfare: G4, C5, E5, G5, C6
-      const fanfare = [
-        { freq: 392.0, time: 0.0, dur: 0.12 },
-        { freq: 523.25, time: 0.1, dur: 0.12 },
-        { freq: 659.25, time: 0.2, dur: 0.14 },
-        { freq: 783.99, time: 0.32, dur: 0.2 },
-        { freq: 1046.5, time: 0.48, dur: 0.45 }
-      ];
+      if (ctx) {
+        const now = ctx.currentTime;
+        // 5-note royal trumpet fanfare: G4 -> C5 -> E5 -> G5 -> C6
+        const notes = [
+          { freq: 392.0, time: 0, dur: 0.12 },
+          { freq: 523.25, time: 0.12, dur: 0.12 },
+          { freq: 659.25, time: 0.24, dur: 0.12 },
+          { freq: 783.99, time: 0.36, dur: 0.2 },
+          { freq: 1046.5, time: 0.56, dur: 0.45 }
+        ];
 
-      fanfare.forEach(({ freq, time, dur }) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + time);
+        notes.forEach(({ freq, time, dur }) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
 
-        gain.gain.setValueAtTime(0.22, now + time);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + time);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + time);
-        osc.stop(now + time + dur + 0.02);
-      });
+          gain.gain.setValueAtTime(0.24, now + time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + time);
+          osc.stop(now + time + dur + 0.02);
+        });
+      }
     } catch {}
+
+    // Female voice: "XXX won!" (1-2 seconds)
+    const announcement = cardName ? `${cardName} won!` : 'You won!';
+    this.speak(announcement);
   }
 
   /**
@@ -256,29 +310,51 @@ class BettingSoundManager {
   }
 
   /**
-   * 6. coin: Short, crisp metallic coin sound for chip selections or balance updates
+   * 6. coin: Authentic metallic coin clink with multi-harmonic resonance & felt bounce
    */
   public playCoin() {
-    if (!this._enabled || this.shouldRateLimit('coin', 40)) return;
+    if (!this._enabled || this.shouldRateLimit('coin', 30)) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
       const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(2349.32, now); // D7
-      osc.frequency.exponentialRampToValueAtTime(3520.0, now + 0.03); // A7
+      // Realistic double coin clink (primary drop + felt micro-bounce)
+      const drops = [
+        { time: 0, gain: 0.18, freq: 3600 },
+        { time: 0.028, gain: 0.11, freq: 4300 }
+      ];
 
-      gain.gain.setValueAtTime(0.14, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      drops.forEach(d => {
+        // High overtone impact chime
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(d.freq, now + d.time);
+        osc.frequency.exponentialRampToValueAtTime(d.freq * 0.72, now + d.time + 0.05);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(d.gain, now + d.time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + d.time + 0.07);
 
-      osc.start(now);
-      osc.stop(now + 0.07);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + d.time);
+        osc.stop(now + d.time + 0.08);
+
+        // Warm metallic ring body
+        const ringOsc = ctx.createOscillator();
+        const ringGain = ctx.createGain();
+        ringOsc.type = 'triangle';
+        ringOsc.frequency.setValueAtTime(1920, now + d.time);
+
+        ringGain.gain.setValueAtTime(d.gain * 0.45, now + d.time);
+        ringGain.gain.exponentialRampToValueAtTime(0.0001, now + d.time + 0.11);
+
+        ringOsc.connect(ringGain);
+        ringGain.connect(ctx.destination);
+        ringOsc.start(now + d.time);
+        ringOsc.stop(now + d.time + 0.12);
+      });
     } catch {}
   }
 
@@ -413,8 +489,8 @@ class BettingSoundManager {
     this.playNotification();
   }
 
-  public playWin() {
-    this.playBetWon();
+  public playWin(cardName?: string) {
+    this.playBetWon(cardName);
   }
 }
 

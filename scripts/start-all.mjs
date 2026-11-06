@@ -41,12 +41,15 @@ const services = [
 
 const children = [];
 
+const nodeBin = '/Users/ravan/.local/node/bin';
+const customPath = process.env.PATH ? `${nodeBin}:${process.env.PATH}` : nodeBin;
+
 function startService(svc) {
   console.log(`[ORCHESTRATOR] 🚀 Starting ${svc.name}...`);
   const child = spawn(svc.cmd, svc.args, {
     cwd: svc.cwd,
     stdio: ['pipe', 'inherit', 'inherit'],
-    env: { ...process.env, CI: 'true' }
+    env: { ...process.env, PATH: customPath, CI: 'true' }
   });
 
   child.on('exit', (code, signal) => {
