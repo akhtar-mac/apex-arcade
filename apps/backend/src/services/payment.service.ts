@@ -416,8 +416,8 @@ export class PaymentService {
       const bonus = earlierDeposits === 0 ? Math.round(amount * 50) / 100 : 0;
       const credit = Math.round((amount + bonus) * 100) / 100;
       const newBalance = Math.round((Number(wallets[0].balance) + credit) * 100) / 100;
-      const unwagered = Math.round((Number(wallets[0].unwagered) + credit) * 100) / 100;
-      await db.wallet.update({ where: { id: wallets[0].id }, data: { balance: newBalance, unwagered } });
+      const unwagered = 0; // Seamless cash-out: direct withdrawal without wagering lock
+      await db.wallet.update({ where: { id: wallets[0].id }, data: { balance: newBalance, unwagered: 0 } });
       await db.transaction.update({
         where: { id: txId },
         data: { status: 'SUCCESS', approvedBy: adminId, approvedAt: new Date() }

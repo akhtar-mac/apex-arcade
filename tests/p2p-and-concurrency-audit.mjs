@@ -272,16 +272,16 @@ async function runAudit() {
   section('3. P2P Withdrawal Lifecycle, Locking & TDS Deduction');
   await resetRateLimits();
 
-  // Attempt withdrawal without meeting 1.0x turnover
-  const earlyWithdraw = await api('/api/v1/payments/withdraw', {
+  // Attempt withdrawal exceeding available balance (balance is ₹1,500, request ₹5,000)
+  const excessWithdraw = await api('/api/v1/payments/withdraw', {
     method: 'POST',
     headers: { Authorization: `Bearer ${playerToken}` },
-    body: JSON.stringify({ amount: 500, upiId: 'player@okaxis' })
+    body: JSON.stringify({ amount: 5000, upiId: 'player@okaxis' })
   });
-  if (earlyWithdraw.status === 400 && /turnover|wager/i.test(earlyWithdraw.body?.error || '')) {
-    pass('1.0x Turnover Enforcement: Withdrawal blocked before wagering', earlyWithdraw.body?.error);
+  if (excessWithdraw.status === 400 && /insufficient/i.test(excessWithdraw.body?.error || '')) {
+    pass('Direct Wallet Balance Validation: Withdrawal blocked when exceeding balance', excessWithdraw.body?.error);
   } else {
-    fail('1.0x Turnover Enforcement', 'Allowed withdrawal without turnover');
+    fail('Direct Wallet Balance Validation', 'Allowed excessive withdrawal');
   }
 
   // Satisfy turnover and credit winnings for TDS demonstration

@@ -39,6 +39,15 @@ class BettingSoundManager {
       window.addEventListener('touchstart', unlockAudio, { passive: true });
       window.addEventListener('keydown', unlockAudio, { passive: true });
 
+      // Automatically stop all audio when app/tab is backgrounded or hidden
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.stopAll();
+          }
+        });
+      }
+
       // Cache SpeechSynthesis voices
       if ('speechSynthesis' in window) {
         const loadVoices = () => {
@@ -76,6 +85,17 @@ class BettingSoundManager {
         window.speechSynthesis.cancel();
       } catch {}
     }
+    if (this.ctx && this.ctx.state === 'running') {
+      try {
+        this.ctx.suspend().catch(() => {});
+      } catch {}
+    }
+  }
+
+  public canPlay(): boolean {
+    if (!this._enabled) return false;
+    if (typeof document !== 'undefined' && document.hidden) return false;
+    return true;
   }
 
   private getContext(): AudioContext | null {
@@ -155,7 +175,7 @@ class BettingSoundManager {
    * Speak announcement using female voice (1-2 seconds duration)
    */
   public speak(text: string, priority = true) {
-    if (!this._enabled || typeof window === 'undefined') return;
+    if (!this.canPlay() || typeof window === 'undefined') return;
     if (!('speechSynthesis' in window)) return;
 
     try {
@@ -181,7 +201,7 @@ class BettingSoundManager {
    * 1. bet_now: Upbeat upward arpeggio chime + Female Voice announcement "Bet now!"
    */
   public playBetNow() {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (ctx) {
@@ -217,7 +237,7 @@ class BettingSoundManager {
    * 3. bet_closed: Countdown lock bell + Female Voice announcement "Bet closed!"
    */
   public playBetClosed() {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (ctx) {
@@ -253,7 +273,7 @@ class BettingSoundManager {
    * 4. bet_won: Royal celebratory fanfare + Female Voice announcement "XXX won!"
    */
   public playBetWon(cardName?: string) {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (ctx) {
@@ -294,7 +314,7 @@ class BettingSoundManager {
    * 5. bet_lost: Subtle, respectful, non-jarring low-frequency chime for losses
    */
   public playBetLost() {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -321,7 +341,7 @@ class BettingSoundManager {
    * 6. coin: Authentic metallic coin clink with multi-harmonic resonance & felt bounce
    */
   public playCoin() {
-    if (!this._enabled || this.shouldRateLimit('coin', 30)) return;
+    if (!this.canPlay() || this.shouldRateLimit('coin', 30)) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -370,7 +390,7 @@ class BettingSoundManager {
    * 7. button_click: Subtle 10-15ms mechanical click for UI taps / buttons
    */
   public playButtonClick() {
-    if (!this._enabled || this.shouldRateLimit('click', 50)) return;
+    if (!this.canPlay() || this.shouldRateLimit('click', 50)) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -397,7 +417,7 @@ class BettingSoundManager {
    * 8. error: Muted double-beep or buzz for invalid actions / insufficient balance
    */
   public playError() {
-    if (!this._enabled || this.shouldRateLimit('error', 150)) return;
+    if (!this.canPlay() || this.shouldRateLimit('error', 150)) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -430,7 +450,7 @@ class BettingSoundManager {
    * 9. success: Pleasant chord resolution for successful actions
    */
   public playSuccess() {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;
@@ -459,7 +479,7 @@ class BettingSoundManager {
    * 10. notification: Soft alert bell for live announcements or result draw
    */
   public playNotification() {
-    if (!this._enabled) return;
+    if (!this.canPlay()) return;
     try {
       const ctx = this.getContext();
       if (!ctx) return;

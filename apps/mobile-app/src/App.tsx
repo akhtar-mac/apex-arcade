@@ -381,7 +381,7 @@ export default function MobileApp() {
         if (wallet?.balance !== undefined) {
           const newBal = Number(wallet.balance);
           setBalance(prev => {
-            if (prev !== newBal && newBal > prev) {
+            if (prev > 0 && prev !== newBal && newBal > prev && activeTabRef.current === 'arena') {
               sound.playCoin();
               setBalanceFlash(true);
               setTimeout(() => setBalanceFlash(false), 1200);
@@ -2475,11 +2475,11 @@ export default function MobileApp() {
 
       {/* ── TOAST NOTIFICATION ── */}
       {toastMessage && (
-        <div className="fixed top-16 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="bg-[#221810] border border-amber-500/40 text-amber-100 px-4 py-2.5 rounded-xl shadow-2xl shadow-black/80 flex items-center justify-between text-xs w-full max-w-sm pointer-events-auto animate-slide-up">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="fixed top-16 inset-x-0 z-50 flex justify-center px-3 pointer-events-none">
+          <div className="bg-[#221810] border border-amber-500/40 text-amber-100 px-3.5 py-2.5 rounded-xl shadow-2xl shadow-black/80 flex items-center justify-between text-xs w-full max-w-sm pointer-events-auto animate-slide-up mx-auto">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b] shrink-0" />
-              <span className="font-medium text-amber-100 truncate">{toastMessage}</span>
+              <span className="font-medium text-amber-100 truncate text-[11px] sm:text-xs">{toastMessage}</span>
             </div>
             <button onClick={() => setToastMessage(null)} className="text-amber-200/60 hover:text-white shrink-0 ml-2">
               <X className="w-3.5 h-3.5" />
@@ -2724,7 +2724,7 @@ export default function MobileApp() {
                   <div
                     key={card.id}
                     onClick={() => handlePlaceBet(card.id)}
-                    className={`relative rounded-xl transition-all duration-200 cursor-pointer pressable overflow-hidden flex flex-col items-center justify-between p-1 sm:p-1.5 min-h-[105px] xs:min-h-[112px] sm:min-h-[120px] ${
+                    className={`relative rounded-xl transition-all duration-200 cursor-pointer pressable overflow-hidden flex flex-col items-center justify-between p-1 sm:p-1.5 min-w-0 min-h-[105px] xs:min-h-[112px] sm:min-h-[120px] ${
                       isWinner
                         ? 'gold-shimmer-border scale-105 z-20 bg-amber-200/90'
                         : userBet > 0
@@ -2764,7 +2764,7 @@ export default function MobileApp() {
                     </div>
 
                     {/* Card English Name */}
-                    <span className="text-[9px] xs:text-[10px] font-black text-[#3a200a] tracking-tight leading-none z-10 text-center truncate max-w-full">
+                    <span className="text-[9px] xs:text-[10px] font-black text-[#3a200a] tracking-tight leading-none z-10 text-center truncate max-w-full block px-0.5">
                       {getCardEnglish(card)}
                     </span>
                   </div>
@@ -2860,7 +2860,7 @@ export default function MobileApp() {
               </span>
             </div>
 
-            <div className="grid grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-6 gap-1 xs:gap-1.5">
               {[10, 50, 100, 500, 1000, 5000].map(val => (
                 <button
                   key={val}
@@ -2868,7 +2868,7 @@ export default function MobileApp() {
                     setSelectedChip(val);
                     sound.playCoin();
                   }}
-                  className={`py-2 rounded-xl text-xs font-mono-numbers font-black transition-all pressable ${
+                  className={`py-2 px-1 rounded-xl text-[10px] xs:text-xs font-mono-numbers font-black transition-all pressable min-w-0 truncate ${
                     selectedChip === val
                       ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-black shadow-md shadow-amber-500/30 border border-amber-200 scale-105'
                       : 'bg-[#261d15] border border-amber-500/20 text-amber-200/70 hover:text-white'
@@ -2952,59 +2952,58 @@ export default function MobileApp() {
                 return (
                   <div
                     key={item.id}
-                    className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                    className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition-all min-w-0 ${
                       item.isSelf
                         ? 'bg-amber-500/15 border-amber-500/40 shadow-sm'
                         : 'bg-[#1c150e] border-amber-500/20 hover:border-amber-500/40'
                     }`}
                   >
                     {/* User ID */}
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-[#221810] border border-amber-500/30 flex items-center justify-center text-xs font-mono-numbers text-amber-300 shrink-0">
-                        <User className="w-4 h-4 text-amber-400" />
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-7 h-7 rounded-lg bg-[#221810] border border-amber-500/30 flex items-center justify-center text-xs font-mono-numbers text-amber-300 shrink-0">
+                        <User className="w-3.5 h-3.5 text-amber-400" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-mono-numbers font-bold text-amber-100 tracking-wide">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="text-xs font-mono-numbers font-bold text-amber-100 tracking-wide truncate max-w-[85px] xs:max-w-[110px]">
                             {item.userId}
                           </span>
                           {item.isSelf && (
-                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-black">
+                            <span className="text-[8px] font-black px-1 py-0.2 rounded bg-amber-400 text-black shrink-0">
                               YOU
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-amber-200/50">
+                        <span className="text-[9px] text-amber-200/50 block">
                           {item.timestamp}
                         </span>
                       </div>
                     </div>
 
                     {/* Picture Card and Money Amount */}
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2 shrink-0">
                       {/* Picture Staked On */}
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/60 border border-amber-500/30">
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-black/60 border border-amber-500/30 shrink-0">
                         <img
                           src={card.imageUrl}
                           alt={card.name}
-                          className="w-5 h-5 rounded object-cover"
+                          className="w-4 h-4 rounded object-cover shrink-0"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
-                        <span className="text-xs font-bold text-amber-100 leading-none">
+                        <span className="text-[10px] font-bold text-amber-100 leading-none truncate max-w-[55px] xs:max-w-[70px]">
                           #{card.id} {card.name}
                         </span>
-                        <span className="text-[11px] leading-none">{card.symbol}</span>
                       </div>
 
                       {/* Money Staked */}
-                      <div className="text-right min-w-[70px]">
-                        <span className="text-xs font-mono-numbers font-black text-amber-400">
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-mono-numbers font-black text-amber-400 block leading-tight">
                           ₹{item.amount.toLocaleString('en-IN')}
                         </span>
-                        <span className="block text-[8px] font-mono text-amber-200/60 leading-none">
-                          10x = ₹{(item.amount * 10).toLocaleString('en-IN')}
+                        <span className="block text-[8px] font-mono text-amber-200/60 leading-tight">
+                          10x
                         </span>
                       </div>
                     </div>

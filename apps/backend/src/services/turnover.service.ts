@@ -2,7 +2,8 @@ import { DB } from '../db.js';
 
 export class TurnoverService {
   /**
-   * Returns current turnover and withdrawable balance
+   * Returns current turnover and withdrawable balance.
+   * Seamless cash-out: available wallet balance is 100% withdrawable.
    */
   static async getTurnoverStatus(userId: string): Promise<{
     totalBalance: number;
@@ -12,28 +13,26 @@ export class TurnoverService {
   }> {
     const dbWallet = await DB.getPrisma().wallet.findUnique({ where: { userId } });
     const balance = dbWallet ? Number(dbWallet.balance) : 0;
-    const unwagered = dbWallet ? Number(dbWallet.unwagered) : 0;
-    const withdrawable = Math.max(0, Math.round((balance - unwagered + Number.EPSILON) * 100) / 100);
+    const withdrawable = Math.max(0, Math.round((balance + Number.EPSILON) * 100) / 100);
 
     return {
       totalBalance: balance,
-      unwageredAmount: unwagered,
+      unwageredAmount: 0,
       withdrawableAmount: withdrawable,
-      turnoverComplete: unwagered === 0
+      turnoverComplete: true
     };
   }
 
   /**
-   * Validates if user meets 1.0x wagering requirement for requested withdrawal amount
+   * Validates if user has sufficient available balance for requested withdrawal amount.
    */
   static async validateWithdrawal(userId: string, requestedAmount: number): Promise<{ allowed: boolean; error?: string }> {
     const status = await this.getTurnoverStatus(userId);
     
-    if (requestedAmount > status.withdrawableAmount) {
-      const diff = Math.round((requestedAmount - status.withdrawableAmount + Number.EPSILON) * 100) / 100;
+    if (requestedAmount > status.totalBalance) {
       return {
         allowed: false,
-        error: `1.0x Wagering requirement not met. You have ₹${status.unwageredAmount.toFixed(2)} in unwagered funds. Please wager ₹${diff.toFixed(2)} more in the game to unlock this withdrawal.`
+        error: `Insufficient wallet balance. You have ₹${status.totalBalance.toFixed(2)} available.`
       };
     }
 

@@ -10,10 +10,10 @@ const viewports = [
 ];
 
 const urls = [
-  { name: 'Player App', url: 'http://127.0.0.1:4174' },
-  { name: 'Admin Panel', url: 'http://127.0.0.1:4175' },
-  { name: 'P2P Console', url: 'http://127.0.0.1:4176' },
-  { name: 'Web Landing', url: 'http://127.0.0.1:4173' }
+  { name: 'Player App', url: 'http://127.0.0.1:5174' },
+  { name: 'Admin Panel', url: 'http://127.0.0.1:5175' },
+  { name: 'P2P Console', url: 'http://127.0.0.1:5176' },
+  { name: 'Web Landing', url: 'http://127.0.0.1:5173' }
 ];
 
 async function main() {
