@@ -355,7 +355,11 @@ export default function MobileApp() {
     || (window as any).Capacitor?.getPlatform?.() === 'ios'
     || window.location.protocol === 'capacitor:'
   );
-  const isLocalHost = backendHost === 'localhost' || backendHost === '127.0.0.1' || backendHost.startsWith('192.168.');
+  const isLocalHost = backendHost === 'localhost'
+    || backendHost === '127.0.0.1'
+    || backendHost.startsWith('192.168.')
+    || backendHost.startsWith('10.')
+    || backendHost.startsWith('172.');
   const isAppAllowed = true; // Fully enabled for mobile browser, PWA, and Capacitor native shell
   const API_BASE = import.meta.env.VITE_API_URL
     || (isCapacitorNative || !isLocalHost ? 'https://apex-arcade-api.onrender.com' : `http://${backendHost}:4000`);

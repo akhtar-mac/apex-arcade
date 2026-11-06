@@ -105,6 +105,9 @@ export function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
   const cleanOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
   if (cleanOrigin === 'capacitor://localhost' || cleanOrigin === 'http://localhost' || cleanOrigin === 'https://localhost') return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(cleanOrigin)) {
+    return true;
+  }
   if (Config.corsOrigins.some(o => o.toLowerCase() === cleanOrigin)) return true;
   for (const rawPattern of Config.corsOrigins) {
     const pattern = rawPattern.toLowerCase();
