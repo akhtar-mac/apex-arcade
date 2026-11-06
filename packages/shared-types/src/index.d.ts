@@ -198,27 +198,32 @@ export declare const SubmitUtrSchema: z.ZodObject<{
 export type SubmitUtrRequest = z.infer<typeof SubmitUtrSchema>;
 export declare const WithdrawRequestSchema: z.ZodEffects<z.ZodObject<{
     amount: z.ZodNumber;
-    upiId: z.ZodOptional<z.ZodString>;
-    bankAccount: z.ZodOptional<z.ZodString>;
-    ifscCode: z.ZodOptional<z.ZodString>;
+    upiId: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
+    qrCode: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
+    bankAccount: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
+    ifscCode: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
 }, "strip", z.ZodTypeAny, {
     amount: number;
     upiId?: string | undefined;
+    qrCode?: string | undefined;
     bankAccount?: string | undefined;
     ifscCode?: string | undefined;
 }, {
     amount: number;
     upiId?: string | undefined;
+    qrCode?: string | undefined;
     bankAccount?: string | undefined;
     ifscCode?: string | undefined;
 }>, {
     amount: number;
     upiId?: string | undefined;
+    qrCode?: string | undefined;
     bankAccount?: string | undefined;
     ifscCode?: string | undefined;
 }, {
     amount: number;
     upiId?: string | undefined;
+    qrCode?: string | undefined;
     bankAccount?: string | undefined;
     ifscCode?: string | undefined;
 }>;

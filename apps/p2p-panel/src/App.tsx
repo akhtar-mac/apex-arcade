@@ -50,6 +50,9 @@ interface WithdrawalItem {
   amount: number;
   payoutMethod: string;
   details: string;
+  upiId?: string;
+  qrCode?: string;
+  screenshot?: string;
   time: string;
   status: 'PENDING' | 'DISPATCHED' | 'REJECTED';
   ageSeconds: number;
@@ -214,18 +217,28 @@ export default function P2PApp() {
       }
 
       if (wdRes?.success && Array.isArray(wdRes.data)) {
-        const liveWd: WithdrawalItem[] = wdRes.data.map((w: any) => ({
-          id: w.id,
-          userId: w.userId,
-          phone: w.userPhone || 'Unknown',
-          name: w.userName || w.userPhone || 'Player',
-          amount: Number(w.netAmount || w.amount),
-          payoutMethod: w.payoutDetails?.bankAccount ? 'Bank' : 'UPI',
-          details: w.payoutDetails?.upiId || `${w.payoutDetails?.bankAccount || ''} ${w.payoutDetails?.ifscCode || ''}`.trim(),
-          time: new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'PENDING',
-          ageSeconds: Math.max(0, Math.floor((Date.now() - new Date(w.createdAt).getTime()) / 1000))
-        }));
+        const liveWd: WithdrawalItem[] = wdRes.data.map((w: any) => {
+          const upi = w.payoutDetails?.upiId || w.payoutUpi || '';
+          const qr = w.payoutDetails?.qrCode || w.qrCode || w.screenshot || '';
+          const methodLabel = w.payoutDetails?.bankAccount
+            ? 'Bank Transfer'
+            : (qr && upi ? 'UPI ID & QR Code' : (qr ? 'QR Code' : 'UPI ID'));
+          return {
+            id: w.id,
+            userId: w.userId,
+            phone: w.userPhone || 'Unknown',
+            name: w.userName || w.userPhone || 'Player',
+            amount: Number(w.netAmount || w.amount),
+            payoutMethod: methodLabel,
+            details: upi || `${w.payoutDetails?.bankAccount || ''} ${w.payoutDetails?.ifscCode || ''}`.trim() || 'QR Code Attached',
+            upiId: upi || undefined,
+            qrCode: qr || undefined,
+            screenshot: qr || undefined,
+            time: new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'PENDING',
+            ageSeconds: Math.max(0, Math.floor((Date.now() - new Date(w.createdAt).getTime()) / 1000))
+          };
+        });
         setWithdrawals(liveWd);
         setSelectedWithdrawal(current => liveWd.find(item => item.id === current?.id) || liveWd[0] || null);
       }
@@ -859,18 +872,64 @@ export default function P2PApp() {
                       <span className="text-2xl font-black text-[#00e5ff] font-mono-numbers">₹{selectedWithdrawal.amount.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-white/[0.04]">
-                      <span className="text-slate-400 text-xs">Method</span>
-                      <div className="text-right">
-                        <span className="text-xs font-black text-white block">{selectedWithdrawal.payoutMethod}</span>
-                        <code className="text-[#ffb800] text-xs font-mono">{selectedWithdrawal.details}</code>
-                      </div>
+                      <span className="text-slate-400 text-xs">Payout Method</span>
+                      <span className="text-xs font-black text-white">{selectedWithdrawal.payoutMethod}</span>
                     </div>
-                    <div className="flex justify-between py-2">
+                    <div className="flex justify-between py-2 border-b border-white/[0.04]">
                       <span className="text-slate-400 text-xs">Waiting Time</span>
                       <span className={`font-bold text-sm ${selectedWithdrawal.ageSeconds > 300 ? 'text-amber-400' : 'text-slate-300'}`}>
                         {formatAge(selectedWithdrawal.ageSeconds)}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Destination Options: UPI and/or QR */}
+                  <div className="space-y-3 mb-5">
+                    {selectedWithdrawal.upiId && (
+                      <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Player Receiving UPI ID</span>
+                          <span className="text-sm font-bold text-[#ffb800] font-mono select-all">{selectedWithdrawal.upiId}</span>
+                        </div>
+                        <button
+                          onClick={() => copyText(selectedWithdrawal.upiId || '', `wd-upi-${selectedWithdrawal.id}`)}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white flex items-center gap-1.5 transition-all pressable"
+                        >
+                          {copied === `wd-upi-${selectedWithdrawal.id}` ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy UPI</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedWithdrawal.qrCode && (
+                      <div className="p-4 rounded-2xl bg-black/40 border border-emerald-500/30 text-center space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[11px] uppercase font-black text-emerald-400 flex items-center gap-1.5">
+                            <QrCode className="w-4 h-4" /> Player Payment QR Code
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">Scan directly with UPI App</span>
+                        </div>
+                        <div className="bg-white/5 p-3 rounded-2xl border border-white/10 inline-block">
+                          <img
+                            src={selectedWithdrawal.qrCode}
+                            alt="Player Receiving QR"
+                            className="max-h-52 max-w-full rounded-xl object-contain mx-auto shadow-2xl"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Scan to pay exactly <strong className="text-[#00e5ff] font-mono">₹{selectedWithdrawal.amount.toLocaleString('en-IN')}</strong>
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Instructions */}
@@ -881,9 +940,12 @@ export default function P2PApp() {
                     </div>
                     <div className="space-y-1.5 text-xs text-slate-400">
                       {[
-                        'Open your Bank or Corporate Netbanking portal.',
-                        `Send exactly ₹${selectedWithdrawal.amount.toLocaleString('en-IN')} to the player's ${selectedWithdrawal.payoutMethod} destination above.`,
-                        'Pay that UPI from your own app, then paste the 12-digit UTR and mark it paid.',
+                        'Open your UPI or Netbanking app (Google Pay, PhonePe, Paytm, Bank).',
+                        selectedWithdrawal.qrCode
+                          ? `Scan the player's QR code above or pay to ${selectedWithdrawal.upiId || 'their UPI'}.`
+                          : `Send exactly ₹${selectedWithdrawal.amount.toLocaleString('en-IN')} to UPI: ${selectedWithdrawal.details}.`,
+                        'After successful payment, copy the 12-digit UTR from your bank/UPI app.',
+                        'Paste the 12-digit UTR below and click "Confirm Payout Dispatched".'
                       ].map((step, i) => (
                         <div key={i} className="flex items-start gap-2">
                           <span className="w-4 h-4 rounded-full bg-white/[0.04] flex items-center justify-center text-[9px] font-black text-slate-500 shrink-0 mt-0.5">{i + 1}</span>

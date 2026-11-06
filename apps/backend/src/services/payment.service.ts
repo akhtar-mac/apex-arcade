@@ -379,7 +379,7 @@ export class PaymentService {
   /**
    * Processes withdrawal request via PayoutService (Turnover check, 30% TDS, IMPS dispatch)
    */
-  static async requestWithdrawal(userId: string, amount: number, payoutDetails: { upiId?: string; bankAccount?: string; ifscCode?: string }) {
+  static async requestWithdrawal(userId: string, amount: number, payoutDetails: { upiId?: string; qrCode?: string; bankAccount?: string; ifscCode?: string }) {
     return PayoutService.requestWithdrawal(userId, amount, payoutDetails);
   }
 

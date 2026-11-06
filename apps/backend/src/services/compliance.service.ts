@@ -1,6 +1,6 @@
 import { DB } from '../db.js';
 
-const LARGE_WITHDRAWAL = 10000;
+const LARGE_WITHDRAWAL = 50001;
 
 export class ComplianceService {
   static async assertCanUseAccount(userId: string) {

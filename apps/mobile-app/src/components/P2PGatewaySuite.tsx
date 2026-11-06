@@ -24,6 +24,7 @@ import {
   Scale,
   Sparkles,
   Lock,
+  Camera,
   Info
 } from 'lucide-react';
 
@@ -136,6 +137,8 @@ export function P2PGatewaySuite({
   const [amountChoice, setAmountChoice] = useState<number>(1000);
   const [customAmount, setCustomAmount] = useState<string>('1000');
   const [payoutUpiInput, setPayoutUpiInput] = useState<string>('');
+  const [payoutQrImage, setPayoutQrImage] = useState<string | null>(null);
+  const [payoutQrFileName, setPayoutQrFileName] = useState<string>('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState<boolean>(false);
 
   // Checkout State
@@ -262,29 +265,51 @@ export function P2PGatewaySuite({
 
   // Execute Withdrawal Creation
   const handleCreateWithdrawal = async () => {
-    const finalAmt = Number(customAmount) || amountChoice;
+    const finalAmt = Number(customAmount);
+    if (!finalAmt || isNaN(finalAmt)) {
+      sound.playError();
+      showToast('Please type the amount you want to withdraw.');
+      return;
+    }
     if (finalAmt < 500) {
       sound.playError();
       showToast('Minimum payout request is ₹500.');
       return;
     }
-    if (finalAmt > balance) {
+    if (finalAmt > 50000) {
       sound.playError();
-      showToast('Insufficient withdrawable balance.');
+      showToast('Maximum payout request is ₹50,000 for one time.');
       return;
     }
-    if (!payoutUpiInput.includes('@')) {
+    if (finalAmt > balance) {
+      sound.playError();
+      showToast(`Insufficient balance. Your available balance is ₹${balance.toLocaleString('en-IN')}.`);
+      return;
+    }
+
+    const cleanUpi = payoutUpiInput.trim();
+    if (!cleanUpi && !payoutQrImage) {
+      sound.playError();
+      showToast('Please enter your receiving UPI ID or upload your payment QR code (or both).');
+      return;
+    }
+    if (cleanUpi && !cleanUpi.includes('@')) {
       sound.playError();
       showToast('Please enter a valid receiving UPI ID (e.g. name@okhdfcbank).');
       return;
     }
+
     setIsSubmittingOrder(true);
     sound.playButtonClick();
     try {
       const res = await fetch(`${API_BASE}/api/v1/payments/withdraw`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ amount: finalAmt, upiId: payoutUpiInput.trim() })
+        body: JSON.stringify({
+          amount: finalAmt,
+          upiId: cleanUpi || undefined,
+          qrCode: payoutQrImage || undefined
+        })
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -655,54 +680,182 @@ export function P2PGatewaySuite({
             </button>
           </div>
 
-          {/* Amount Selector */}
-          <div className="p-4 rounded-2xl bg-[#1c150e] border border-amber-500/25 space-y-3">
-            <span className="text-[10px] uppercase font-bold text-amber-200/70 block">Select Order Amount</span>
-            <div className="grid grid-cols-4 gap-2">
-              {[200, 500, 1000, 2500].map(amt => (
-                <button
-                  key={amt}
-                  onClick={() => {
-                    setAmountChoice(amt);
-                    setCustomAmount(String(amt));
-                  }}
-                  className={`py-2.5 rounded-xl font-mono-numbers font-black text-xs pressable transition-all ${
-                    (Number(customAmount) || amountChoice) === amt
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border border-amber-300'
-                      : 'bg-[#221810] border border-amber-500/25 text-amber-200 hover:border-amber-400'
-                  }`}
-                >
-                  ₹{amt}
-                </button>
-              ))}
-            </div>
+          {/* Amount & Destination Selector */}
+          <div className="p-4 rounded-2xl bg-[#1c150e] border border-amber-500/25 space-y-4">
+            {createType === 'DEPOSIT' ? (
+              <>
+                <span className="text-[10px] uppercase font-bold text-amber-200/70 block">Select Order Amount</span>
+                <div className="grid grid-cols-4 gap-2">
+                  {[200, 500, 1000, 2500].map(amt => (
+                    <button
+                      key={amt}
+                      onClick={() => {
+                        setAmountChoice(amt);
+                        setCustomAmount(String(amt));
+                      }}
+                      className={`py-2.5 rounded-xl font-mono-numbers font-black text-xs pressable transition-all ${
+                        (Number(customAmount) || amountChoice) === amt
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md border border-amber-300'
+                          : 'bg-[#221810] border border-amber-500/25 text-amber-200 hover:border-amber-400'
+                      }`}
+                    >
+                      ₹{amt}
+                    </button>
+                  ))}
+                </div>
 
-            <div>
-              <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
-                Custom Amount (₹)
-              </label>
-              <input
-                type="number"
-                value={customAmount}
-                onChange={e => setCustomAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="w-full bg-[#140f0a] border border-amber-500/30 rounded-xl px-4 py-3 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-base outline-none focus:border-amber-400"
-              />
-            </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
+                    Custom Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={customAmount}
+                    onChange={e => setCustomAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full bg-[#140f0a] border border-amber-500/30 rounded-xl px-4 py-3 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-base outline-none focus:border-amber-400"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Withdrawal Amount - No suggestions, user types own amount */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] uppercase tracking-wide font-black text-amber-300">
+                      Enter Payout Amount
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-amber-200/70 font-mono">
+                        Available: <strong className="text-white">₹{balance.toLocaleString('en-IN')}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const maxVal = Math.min(50000, Math.max(0, balance));
+                          setCustomAmount(String(maxVal));
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black hover:bg-amber-500/30 pressable"
+                      >
+                        All
+                      </button>
+                    </div>
+                  </div>
 
-            {createType === 'WITHDRAWAL' && (
-              <div>
-                <label className="text-[10px] uppercase font-bold text-amber-200/70 block mb-1">
-                  Receiving UPI ID
-                </label>
-                <input
-                  type="text"
-                  value={payoutUpiInput}
-                  onChange={e => setPayoutUpiInput(e.target.value)}
-                  placeholder="e.g. yourname@okhdfcbank"
-                  className="w-full bg-[#140f0a] border border-amber-500/30 rounded-xl px-4 py-3 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-sm outline-none focus:border-amber-400"
-                />
-              </div>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 font-mono text-lg font-black">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      min={500}
+                      max={50000}
+                      value={customAmount}
+                      onChange={e => setCustomAmount(e.target.value)}
+                      placeholder="Type amount to withdraw"
+                      className="w-full bg-[#140f0a] border border-amber-500/40 rounded-xl pl-9 pr-4 py-3.5 text-amber-100 placeholder:text-amber-200/30 font-mono-numbers text-lg font-black outline-none focus:border-amber-400 shadow-inner"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-amber-200/60 font-mono px-1">
+                    <span>Min Payout: ₹500</span>
+                    <span className="text-amber-300 font-bold">Max 1-Time: ₹50,000</span>
+                  </div>
+                </div>
+
+                {/* Receiving Destination - UPI ID or QR Code or Both */}
+                <div className="pt-3 border-t border-amber-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] uppercase font-black text-amber-300 flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-amber-400" />
+                      Receiving Destination (UPI ID or QR Code or Both)
+                    </span>
+                    <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      Direct P2P
+                    </span>
+                  </div>
+
+                  {/* Field 1: Receiving UPI ID */}
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-amber-200/70 block mb-1">
+                      Option 1: Receiving UPI ID
+                    </label>
+                    <input
+                      type="text"
+                      value={payoutUpiInput}
+                      onChange={e => setPayoutUpiInput(e.target.value)}
+                      placeholder="e.g. 7972272861@paytm or name@okhdfcbank"
+                      className="w-full bg-[#140f0a] border border-amber-500/30 rounded-xl px-4 py-2.5 text-amber-100 placeholder:text-amber-200/30 font-mono text-xs outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  {/* Field 2: Receiving QR Code */}
+                  <div>
+                    <label className="text-[10px] uppercase font-semibold text-amber-200/70 block mb-1">
+                      Option 2: Receiving QR Code Image
+                    </label>
+                    {payoutQrImage ? (
+                      <div className="p-2.5 rounded-xl bg-[#140f0a] border border-emerald-500/40 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={payoutQrImage}
+                            alt="Receiving QR"
+                            className="w-12 h-12 rounded-lg object-contain bg-white/10 border border-emerald-500/40 p-0.5 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-emerald-300 block truncate max-w-[190px]">
+                              {payoutQrFileName || 'Personal QR Code Attached'}
+                            </span>
+                            <span className="text-[10px] text-emerald-400/80">✓ Verified receiving QR</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayoutQrImage(null);
+                            setPayoutQrFileName('');
+                          }}
+                          className="text-amber-200/60 hover:text-white p-1.5 rounded-lg bg-black/40 hover:bg-black/60 pressable"
+                        >
+                          <X className="w-4 h-4 text-red-400" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-full py-3 px-3.5 rounded-xl bg-[#140f0a] border border-dashed border-amber-500/40 text-center flex flex-col items-center justify-center gap-1 hover:border-amber-400 cursor-pointer pressable transition-all">
+                        <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                          <Camera className="w-4 h-4 text-amber-400" />
+                          <span>Tap to Upload / Choose QR Code Image</span>
+                        </div>
+                        <span className="text-[10px] text-amber-200/50">
+                          GPay, PhonePe, Paytm or Banking QR screenshot
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const compressed = await compressImageClient(file);
+                                setPayoutQrImage(compressed);
+                                setPayoutQrFileName(file.name || 'qr_code.png');
+                                showToast('QR Code attached successfully.');
+                              } catch {
+                                showToast('Could not load QR code image.');
+                              }
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-amber-200/50 italic">
+                    💡 You can provide your UPI ID, your payment QR code, or both for smooth dispatch.
+                  </p>
+                </div>
+              </>
             )}
           </div>
 
@@ -711,7 +864,9 @@ export function P2PGatewaySuite({
             <span className="text-[10px] uppercase font-bold font-sans text-amber-200/60 block">Transparent Order Breakdown</span>
             <div className="flex justify-between">
               <span className="text-amber-200/70">Order Principal:</span>
-              <span className="font-bold text-amber-100">₹{(Number(customAmount) || amountChoice).toLocaleString('en-IN')}</span>
+              <span className="font-bold text-amber-100">
+                ₹{(Number(customAmount) || (createType === 'DEPOSIT' ? amountChoice : 0)).toLocaleString('en-IN')}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-amber-200/70">Platform Gateway Fee:</span>
@@ -720,7 +875,9 @@ export function P2PGatewaySuite({
             {createType === 'DEPOSIT' ? (
               <div className="flex justify-between">
                 <span className="text-amber-200/70">First Deposit Bonus (+50%):</span>
-                <span className="font-bold text-emerald-400">+₹{((Number(customAmount) || amountChoice) * 0.5).toLocaleString('en-IN')}</span>
+                <span className="font-bold text-emerald-400">
+                  +₹{((Number(customAmount) || amountChoice) * 0.5).toLocaleString('en-IN')}
+                </span>
               </div>
             ) : (
               <div className="flex justify-between">
@@ -733,7 +890,7 @@ export function P2PGatewaySuite({
               <span className="text-amber-300">
                 ₹{createType === 'DEPOSIT'
                   ? ((Number(customAmount) || amountChoice) * 1.5).toLocaleString('en-IN')
-                  : (Number(customAmount) || amountChoice).toLocaleString('en-IN')}
+                  : (Number(customAmount) || 0).toLocaleString('en-IN')}
               </span>
             </div>
           </div>

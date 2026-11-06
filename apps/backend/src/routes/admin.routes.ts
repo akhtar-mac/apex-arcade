@@ -214,7 +214,12 @@ adminRouter.get('/withdrawals', async (_req: Request, res: Response) => {
   const pendingWithdrawals = rows.map(({ user, ...transaction }) => ({
     ...transaction,
     userPhone: user.phoneNumber,
-    payoutDetails: { upiId: transaction.payoutUpi || user.upiId || '' },
+    payoutDetails: {
+      upiId: transaction.payoutUpi || user.upiId || '',
+      qrCode: (transaction as any).payoutQr || transaction.screenshot || null
+    },
+    qrCode: (transaction as any).payoutQr || transaction.screenshot || null,
+    screenshot: (transaction as any).payoutQr || transaction.screenshot || null,
     legalName: user.legalName || user.fullName || null,
     panNumber: user.panNumber || null
   }));

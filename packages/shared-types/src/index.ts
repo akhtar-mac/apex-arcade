@@ -195,12 +195,13 @@ export const SubmitUtrSchema = z.object({
 export type SubmitUtrRequest = z.infer<typeof SubmitUtrSchema>;
 
 export const WithdrawRequestSchema = z.object({
-  amount: z.number().positive().min(500, 'Minimum withdrawal is ₹500'),
-  upiId: z.string().regex(/^[\w.-]+@[\w.-]+$/, 'Valid UPI ID format required (e.g. user@okhdfcbank)').optional(),
-  bankAccount: z.string().min(8).optional(),
-  ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Valid IFSC code required').optional()
-}).refine(data => data.upiId || (data.bankAccount && data.ifscCode), {
-  message: 'Either UPI ID or Bank Account + IFSC must be provided'
+  amount: z.number().positive().min(500, 'Minimum withdrawal is ₹500').max(50000, 'Maximum withdrawal is ₹50,000 for one time'),
+  upiId: z.string().trim().regex(/^[\w.-]+@[\w.-]+$/, 'Valid UPI ID format required (e.g. user@okhdfcbank)').optional().or(z.literal('')),
+  qrCode: z.string().max(4_000_000, 'Payment QR image must be 4 MB or smaller').optional().or(z.literal('')),
+  bankAccount: z.string().min(8).optional().or(z.literal('')),
+  ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Valid IFSC code required').optional().or(z.literal(''))
+}).refine(data => Boolean((data.upiId && data.upiId.length > 0) || (data.qrCode && data.qrCode.length > 0) || (data.bankAccount && data.ifscCode)), {
+  message: 'Please provide either your UPI ID, your payment QR code, or both.'
 });
 export type WithdrawRequest = z.infer<typeof WithdrawRequestSchema>;
 

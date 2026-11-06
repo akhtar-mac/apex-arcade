@@ -106,12 +106,13 @@ exports.SubmitUtrSchema = zod_1.z.object({
     screenshotBase64: zod_1.z.string().max(2_800_000, 'Payment screenshot must be 2 MB or smaller').optional()
 });
 exports.WithdrawRequestSchema = zod_1.z.object({
-    amount: zod_1.z.number().positive().min(500, 'Minimum withdrawal is ₹500'),
-    upiId: zod_1.z.string().regex(/^[\w.-]+@[\w.-]+$/, 'Valid UPI ID format required (e.g. user@okhdfcbank)').optional(),
-    bankAccount: zod_1.z.string().min(8).optional(),
-    ifscCode: zod_1.z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Valid IFSC code required').optional()
-}).refine(data => data.upiId || (data.bankAccount && data.ifscCode), {
-    message: 'Either UPI ID or Bank Account + IFSC must be provided'
+    amount: zod_1.z.number().positive().min(500, 'Minimum withdrawal is ₹500').max(50000, 'Maximum withdrawal is ₹50,000 for one time'),
+    upiId: zod_1.z.string().trim().regex(/^[\w.-]+@[\w.-]+$/, 'Valid UPI ID format required (e.g. user@okhdfcbank)').optional().or(zod_1.z.literal('')),
+    qrCode: zod_1.z.string().max(4_000_000, 'Payment QR image must be 4 MB or smaller').optional().or(zod_1.z.literal('')),
+    bankAccount: zod_1.z.string().min(8).optional().or(zod_1.z.literal('')),
+    ifscCode: zod_1.z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Valid IFSC code required').optional().or(zod_1.z.literal(''))
+}).refine(data => Boolean((data.upiId && data.upiId.length > 0) || (data.qrCode && data.qrCode.length > 0) || (data.bankAccount && data.ifscCode)), {
+    message: 'Please provide either your UPI ID, your payment QR code, or both.'
 });
 exports.P2PActionSchema = zod_1.z.object({
     transactionId: zod_1.z.string().uuid(),

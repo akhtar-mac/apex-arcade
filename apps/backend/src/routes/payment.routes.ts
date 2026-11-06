@@ -144,9 +144,10 @@ paymentRouter.post('/withdraw', requireRegulatedRelease, paymentRateLimiter, asy
     }
     const userId = (req as any).user.userId;
     const result = await PaymentService.requestWithdrawal(userId, parsed.data.amount, {
-      upiId: parsed.data.upiId,
-      bankAccount: parsed.data.bankAccount,
-      ifscCode: parsed.data.ifscCode
+      upiId: parsed.data.upiId || undefined,
+      qrCode: parsed.data.qrCode || undefined,
+      bankAccount: parsed.data.bankAccount || undefined,
+      ifscCode: parsed.data.ifscCode || undefined
     });
     return res.json({ success: true, data: result });
   } catch (err: any) {

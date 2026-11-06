@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 
 export interface PayoutDetails {
   upiId?: string;
+  qrCode?: string;
   bankAccount?: string;
   ifscCode?: string;
 }
@@ -28,6 +29,9 @@ export class PayoutService {
     }
     if (requestedAmount < Config.minWithdrawal) {
       throw new Error(`Minimum withdrawal amount is ₹${Config.minWithdrawal}`);
+    }
+    if (requestedAmount > (Config.maxWithdrawal || 50000)) {
+      throw new Error(`Maximum withdrawal amount is ₹${(Config.maxWithdrawal || 50000).toLocaleString('en-IN')} for one time.`);
     }
     const profile = await ComplianceService.assertWithdrawalAllowed(userId, requestedAmount);
 
@@ -58,6 +62,8 @@ export class PayoutService {
       utrNumber: null,
       gatewayName: 'MANUAL_P2P_UPI',
       payoutUpi: details.upiId || null,
+      payoutQr: details.qrCode || null,
+      screenshot: details.qrCode || null,
       payoutDetails: details,
       createdAt: new Date()
     };
@@ -77,7 +83,7 @@ export class PayoutService {
       tdsDeducted: tdsCalc.tdsAmount,
       netPayable: tdsCalc.netPayable,
       newBalance: deductRes.newBalance,
-      message: `₹${requestedAmount.toFixed(2)} is held. A P2P agent will pay ${details.upiId || 'your UPI'} and confirm with the bank UTR. Net payable ₹${tdsCalc.netPayable.toFixed(2)}.${requestedAmount >= 10000 ? ` Agent sees ${profile.legalName || profile.fullName} / ${profile.panNumber}.` : ''}`
+      message: `₹${requestedAmount.toFixed(2)} is held. A P2P agent will process your payout to ${details.upiId || 'your provided QR code'} and confirm with the bank UTR. Net payable ₹${tdsCalc.netPayable.toFixed(2)}.${requestedAmount >= 50000 ? ` Agent sees ${profile.legalName || profile.fullName} / ${profile.panNumber}.` : ''}`
     };
   }
 

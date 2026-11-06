@@ -153,6 +153,7 @@ model Transaction {
   upiAccountId    String?
   upiAccount      UpiAccount? @relation(fields: [upiAccountId], references: [id])
   payoutUpi       String?
+  payoutQr        String?
   rejectionReason String?
   disputeReason   String?
   disputeEvidence String?
