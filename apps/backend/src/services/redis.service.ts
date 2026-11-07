@@ -97,19 +97,27 @@ export class RedisService {
   static getPubSubClients(): { pubClient: Redis; subClient: Redis } {
     if (!pubClient || !subClient) {
       pubClient = new Redis(Config.redisUrl, {
-        maxRetriesPerRequest: 1,
-        enableOfflineQueue: false,
-        connectTimeout: 500,
-        enableReadyCheck: false,
-        lazyConnect: true,
-        retryStrategy: () => null
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: true,
+        connectTimeout: 5000,
+        enableReadyCheck: true,
+        lazyConnect: false,
+        retryStrategy(times) {
+          return redisRetryDelayMs(times);
+        }
       });
-      subClient = pubClient.duplicate();
+      subClient = pubClient.duplicate({
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: true,
+        lazyConnect: false
+      });
 
-      pubClient.on('error', () => { isRedisConnected = false; });
-      subClient.on('close', () => { isRedisConnected = false; });
-      subClient.on('error', () => { isRedisConnected = false; });
-      subClient.on('close', () => { isRedisConnected = false; });
+      pubClient.on('error', (err) => {
+        console.warn('[REDIS PUB] Notice:', err.message);
+      });
+      subClient.on('error', (err) => {
+        console.warn('[REDIS SUB] Notice:', err.message);
+      });
     }
     return { pubClient, subClient };
   }
